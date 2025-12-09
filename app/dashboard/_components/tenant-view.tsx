@@ -1,8 +1,7 @@
 "use client";
 import { RolesTab } from "@/components/dashboard/roles/RolesTab";
 import { UsersTab } from "@/components/dashboard/users/UsersTab";
-import { ScenariosManagementDialog } from "@/components/dashboard/scenarios/ScenariosManagementDialog";
-import { VerifyPermissions } from "@/components/rbac";
+import { VerifyPermissions, useVerifyPermissions } from "@/components/rbac";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -24,6 +23,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ScenariosManagementDialog } from "@/components/dashboard/scenarios/ScenariosManagementDialog";
 
 // Componente que renderiza a view do tenant selecionado
 export function TenantView({
@@ -39,6 +39,13 @@ export function TenantView({
 	);
 	const [isScenariosManagementOpen, setIsScenariosManagementOpen] =
 		useState(false);
+
+	const { can } = useVerifyPermissions({
+		scope: "tenant",
+		tenantId: tenant.tenantId,
+	});
+
+	const canEditScenarios = can(TENANT_PERMISSIONS.SCENARIO_EDIT);
 
 	return (
 		<div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -121,9 +128,9 @@ export function TenantView({
 			<div className="mt-6">
 				{activeTab === "scenarios" && (
 					<>
-						{tenant.UserScenarios && tenant.UserScenarios.length > 0 ? (
+						{tenant.UserScenarios?.length > 0 || canEditScenarios ? (
 							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-								{tenant.UserScenarios.map((userScenario) => (
+								{tenant.UserScenarios?.map((userScenario) => (
 									<Card
 										key={userScenario.id}
 										className="hover:shadow-lg transition-all duration-300 cursor-pointer border-emerald-100 dark:border-emerald-900/30 group"
@@ -155,11 +162,7 @@ export function TenantView({
 										</CardContent>
 									</Card>
 								))}
-								<VerifyPermissions
-									scope="tenant"
-									tenantId={tenant.tenantId}
-									permissions={TENANT_PERMISSIONS.SCENARIO_EDIT}
-								>
+								{canEditScenarios && (
 									<Card
 										onClick={() => setIsScenariosManagementOpen(true)}
 										className="border-dashed border-2 border-gray-200 dark:border-gray-800 hover:border-emerald-500 dark:hover:border-emerald-500/50 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center min-h-[200px] group"
@@ -171,7 +174,7 @@ export function TenantView({
 											Gerenciar Cenários
 										</span>
 									</Card>
-								</VerifyPermissions>
+								)}
 							</div>
 						) : (
 							<div className="text-center py-12 bg-white dark:bg-gray-900 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">

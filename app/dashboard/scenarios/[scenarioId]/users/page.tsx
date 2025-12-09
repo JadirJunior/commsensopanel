@@ -323,13 +323,20 @@ export default function ScenarioUsersPage() {
 																<Pencil className="w-4 h-4 mr-2" />
 																Editar
 															</DropdownMenuItem>
-															<DropdownMenuItem
-																className="text-red-600 focus:text-red-600"
-																onClick={() => setUserToDelete(scenarioUser)}
+															<VerifyPermissions
+																scope="scenario"
+																tenantId={tenantId}
+																scenarioId={scenarioId}
+																permissions={SCENARIO_PERMISSIONS.USER_ALL}
 															>
-																<Trash2 className="w-4 h-4 mr-2" />
-																Remover
-															</DropdownMenuItem>
+																<DropdownMenuItem
+																	className="text-red-600 focus:text-red-600"
+																	onClick={() => setUserToDelete(scenarioUser)}
+																>
+																	<Trash2 className="w-4 h-4 mr-2" />
+																	Remover
+																</DropdownMenuItem>
+															</VerifyPermissions>
 														</DropdownMenuContent>
 													</DropdownMenu>
 												</VerifyPermissions>

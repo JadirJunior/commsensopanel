@@ -42,7 +42,7 @@ import { toast } from "sonner";
 import { useVerifyPermissions } from "@/components/rbac";
 import { TENANT_PERMISSIONS } from "@/constants/permissions";
 import { AssignUserScenarioDialog } from "./AssignUserScenarioDialog";
-import { ScenarioRoleDialog } from "./ScenarioRoleDialog";
+import { ScenarioRoleDialog } from "../roles/ScenarioRoleDialog";
 
 interface Scenario {
 	id: string;
@@ -732,6 +732,7 @@ export function ScenariosManagementDialog({
 							setRoleDialogOpen(false);
 							fetchScenarioRoles();
 						}}
+						scope="tenant"
 					/>
 				</>
 			)}

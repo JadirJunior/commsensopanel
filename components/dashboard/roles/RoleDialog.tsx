@@ -136,7 +136,7 @@ export function RoleDialog({
 										key={resource.id}
 										className="flex items-center justify-between"
 									>
-										<Label className="text-base font-medium text-foreground">
+										<Label className="text-base font-medium">
 											{resource.label}
 										</Label>
 										<Select

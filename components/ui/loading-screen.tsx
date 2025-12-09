@@ -32,6 +32,11 @@ export function LoadingScreen({
 	const [progress, setProgress] = useState(0);
 	const [currentStep, setCurrentStep] = useState(0);
 	const [shouldShow, setShouldShow] = useState(isLoading);
+	const [mounted, setMounted] = useState(false);
+
+	useEffect(() => {
+		setMounted(true);
+	}, []);
 
 	// Gera as partículas com valores determinísticos baseados no índice
 	const particles = useMemo(() => {
@@ -98,29 +103,30 @@ export function LoadingScreen({
 				>
 					{/* Background animated particles */}
 					<div className="absolute inset-0 overflow-hidden">
-						{particles.map((particle, i) => (
-							<motion.div
-								key={i}
-								className="absolute w-2 h-2 bg-emerald-500/20 rounded-full"
-								style={{
-									left: `${particle.initialX}%`,
-									top: `${particle.initialY}%`,
-								}}
-								initial={{
-									scale: particle.scale,
-								}}
-								animate={{
-									y: [0, particle.animateY],
-									opacity: [0, 1, 0],
-								}}
-								transition={{
-									duration: particle.duration,
-									repeat: Infinity,
-									repeatType: "loop",
-									delay: particle.delay,
-								}}
-							/>
-						))}
+						{mounted &&
+							particles.map((particle, i) => (
+								<motion.div
+									key={i}
+									className="absolute w-2 h-2 bg-emerald-500/20 rounded-full"
+									style={{
+										left: `${particle.initialX}%`,
+										top: `${particle.initialY}%`,
+									}}
+									initial={{
+										scale: particle.scale,
+									}}
+									animate={{
+										y: [0, particle.animateY],
+										opacity: [0, 1, 0],
+									}}
+									transition={{
+										duration: particle.duration,
+										repeat: Infinity,
+										repeatType: "loop",
+										delay: particle.delay,
+									}}
+								/>
+							))}
 					</div>
 
 					{/* Main content */}
