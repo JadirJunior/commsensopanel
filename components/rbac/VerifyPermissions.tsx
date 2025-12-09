@@ -72,7 +72,11 @@ export function VerifyPermissions(props: VerifyPermissionsProps) {
 			if (!userScenario) return [];
 
 			// Retorna as permissões do ScenarioRole
-			return userScenario.ScenarioRole?.permissions ?? [];
+			return (
+				userScenario.ScenarioRole?.resources ??
+				userScenario.ScenarioRole?.permissions ??
+				[]
+			);
 		}
 
 		return [];
@@ -121,7 +125,11 @@ export function useVerifyPermissions(
 				(us) => us.Scenario?.id === options.scenarioId
 			);
 			if (!userScenario) return [];
-			return userScenario.ScenarioRole?.permissions ?? [];
+			return (
+				userScenario.ScenarioRole?.resources ??
+				userScenario.ScenarioRole?.permissions ??
+				[]
+			);
 		}
 
 		return [];

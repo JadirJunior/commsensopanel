@@ -7,7 +7,6 @@ import {
 	DialogDescription,
 	DialogHeader,
 	DialogTitle,
-	DialogFooter,
 } from "@/components/ui/dialog";
 import {
 	Table,
@@ -36,17 +35,47 @@ import {
 	LayoutDashboard,
 	ArrowLeft,
 	Save,
+	Shield,
 } from "lucide-react";
 import { apiService } from "@/lib/api";
 import { toast } from "sonner";
 import { useVerifyPermissions } from "@/components/rbac";
 import { TENANT_PERMISSIONS } from "@/constants/permissions";
+import { AssignUserScenarioDialog } from "./AssignUserScenarioDialog";
+import { ScenarioRoleDialog } from "./ScenarioRoleDialog";
 
 interface Scenario {
 	id: string;
 	name: string;
 	slug: string;
 	tenantId: string;
+}
+
+interface ScenarioRole {
+	id: string;
+	name: string;
+	description: string;
+	resources: string[];
+	scenarioId: string;
+}
+
+interface ScenarioUser {
+	id: string;
+	scenarioId: string;
+	userTenantId: string;
+	roleId: string;
+	ScenarioRole: {
+		id: string;
+		name: string;
+	};
+	UserTenant: {
+		id: string;
+		user: {
+			id: string;
+			username: string;
+			email: string;
+		};
+	};
 }
 
 interface ScenariosManagementDialogProps {
@@ -66,15 +95,30 @@ export function ScenariosManagementDialog({
 	});
 	const canEdit = can(TENANT_PERMISSIONS.SCENARIO_EDIT);
 	const canDelete = can(TENANT_PERMISSIONS.SCENARIO_ALL);
+	const canManageMembers = can(TENANT_PERMISSIONS.USER_EDIT);
 
 	const [scenarios, setScenarios] = useState<Scenario[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
-	const [viewMode, setViewMode] = useState<"list" | "edit" | "members">("list");
+	const [viewMode, setViewMode] = useState<
+		"list" | "edit" | "members" | "roles"
+	>("list");
 	const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(
 		null
 	);
 	const [formData, setFormData] = useState({ name: "", slug: "" });
 	const [isSaving, setIsSaving] = useState(false);
+
+	// Members Management State
+	const [members, setMembers] = useState<ScenarioUser[]>([]);
+	const [scenarioRoles, setScenarioRoles] = useState<ScenarioRole[]>([]);
+	const [isMembersLoading, setIsMembersLoading] = useState(false);
+	const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+	const [editingMember, setEditingMember] = useState<ScenarioUser | null>(null);
+
+	// Roles Management State
+	const [isRolesLoading, setIsRolesLoading] = useState(false);
+	const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+	const [editingRole, setEditingRole] = useState<ScenarioRole | null>(null);
 
 	// Busca cenários do tenant
 	const fetchScenarios = useCallback(async () => {
@@ -104,6 +148,62 @@ export function ScenariosManagementDialog({
 		}
 	}, [open, fetchScenarios]);
 
+	// Busca membros do cenário
+	const fetchMembers = useCallback(async () => {
+		if (!selectedScenario) return;
+		try {
+			setIsMembersLoading(true);
+			const response = await apiService.fetchWithAuth<ScenarioUser[]>(
+				`/scenario-members/${selectedScenario.id}`,
+				{
+					headers: {
+						"x-tenant-id": tenantId,
+					},
+				}
+			);
+			if (response.data) {
+				setMembers(response.data);
+			}
+		} catch (error) {
+			console.error("Erro ao buscar membros:", error);
+			toast.error("Não foi possível carregar os membros.");
+		} finally {
+			setIsMembersLoading(false);
+		}
+	}, [selectedScenario, tenantId]);
+
+	// Busca cargos do cenário
+	const fetchScenarioRoles = useCallback(async () => {
+		if (!selectedScenario) return;
+		try {
+			setIsRolesLoading(true);
+			const response = await apiService.fetchWithAuth<ScenarioRole[]>(
+				`/scenario/${selectedScenario.id}/roles`,
+				{
+					headers: {
+						"x-tenant-id": tenantId,
+					},
+				}
+			);
+			if (response.data) {
+				setScenarioRoles(response.data);
+			}
+		} catch (error) {
+			console.error("Erro ao buscar cargos:", error);
+		} finally {
+			setIsRolesLoading(false);
+		}
+	}, [selectedScenario, tenantId]);
+
+	useEffect(() => {
+		if (viewMode === "members" && selectedScenario) {
+			fetchMembers();
+			fetchScenarioRoles();
+		} else if (viewMode === "roles" && selectedScenario) {
+			fetchScenarioRoles();
+		}
+	}, [viewMode, selectedScenario, fetchMembers, fetchScenarioRoles]);
+
 	const handleCreate = () => {
 		setSelectedScenario(null);
 		setFormData({ name: "", slug: "" });
@@ -119,6 +219,11 @@ export function ScenariosManagementDialog({
 	const handleManageMembers = (scenario: Scenario) => {
 		setSelectedScenario(scenario);
 		setViewMode("members");
+	};
+
+	const handleManageRoles = (scenario: Scenario) => {
+		setSelectedScenario(scenario);
+		setViewMode("roles");
 	};
 
 	const handleSave = async () => {
@@ -185,6 +290,70 @@ export function ScenariosManagementDialog({
 		}
 	};
 
+	const handleRemoveMember = async (member: ScenarioUser) => {
+		if (!confirm("Tem certeza que deseja remover este usuário do cenário?"))
+			return;
+
+		try {
+			await apiService.fetchWithAuth(
+				`/scenario-members/${selectedScenario?.id}/${member.id}`,
+				{
+					method: "DELETE",
+					headers: {
+						"x-tenant-id": tenantId,
+					},
+				}
+			);
+			toast.success("Usuário removido com sucesso.");
+			fetchMembers();
+		} catch (error) {
+			console.error("Erro ao remover usuário:", error);
+			toast.error("Não foi possível remover o usuário.");
+		}
+	};
+
+	const handleEditMember = (member: ScenarioUser) => {
+		setEditingMember(member);
+		setAssignDialogOpen(true);
+	};
+
+	const handleAddMember = () => {
+		setEditingMember(null);
+		setAssignDialogOpen(true);
+	};
+
+	// Roles Actions
+	const handleAddRole = () => {
+		setEditingRole(null);
+		setRoleDialogOpen(true);
+	};
+
+	const handleEditRole = (role: ScenarioRole) => {
+		setEditingRole(role);
+		setRoleDialogOpen(true);
+	};
+
+	const handleDeleteRole = async (role: ScenarioRole) => {
+		if (!confirm("Tem certeza que deseja excluir este cargo?")) return;
+
+		try {
+			await apiService.fetchWithAuth(
+				`/scenario/${selectedScenario?.id}/roles/${role.id}`,
+				{
+					method: "DELETE",
+					headers: {
+						"x-tenant-id": tenantId,
+					},
+				}
+			);
+			toast.success("Cargo excluído com sucesso.");
+			fetchScenarioRoles();
+		} catch (error) {
+			console.error("Erro ao excluir cargo:", error);
+			toast.error("Não foi possível excluir o cargo.");
+		}
+	};
+
 	const renderList = () => (
 		<div className="space-y-4">
 			<div className="flex justify-between items-center">
@@ -247,10 +416,20 @@ export function ScenariosManagementDialog({
 										</DropdownMenuTrigger>
 										<DropdownMenuContent align="end">
 											{canEdit && (
-												<DropdownMenuItem onClick={() => handleEdit(scenario)}>
-													<Pencil className="w-4 h-4 mr-2" />
-													Editar
-												</DropdownMenuItem>
+												<>
+													<DropdownMenuItem
+														onClick={() => handleEdit(scenario)}
+													>
+														<Pencil className="w-4 h-4 mr-2" />
+														Editar Cenário
+													</DropdownMenuItem>
+													<DropdownMenuItem
+														onClick={() => handleManageRoles(scenario)}
+													>
+														<Shield className="w-4 h-4 mr-2" />
+														Gerenciar Cargos
+													</DropdownMenuItem>
+												</>
 											)}
 											{canDelete && (
 												<DropdownMenuItem
@@ -323,70 +502,239 @@ export function ScenariosManagementDialog({
 
 	const renderMembers = () => (
 		<div className="space-y-4">
-			<div className="flex items-center gap-4 mb-4">
-				<Button variant="ghost" size="icon" onClick={() => setViewMode("list")}>
-					<ArrowLeft className="w-4 h-4" />
-				</Button>
-				<div>
-					<h3 className="text-lg font-medium">Membros do Cenário</h3>
-					<p className="text-sm text-gray-500">{selectedScenario?.name}</p>
+			<div className="flex items-center justify-between mb-4">
+				<div className="flex items-center gap-4">
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={() => setViewMode("list")}
+					>
+						<ArrowLeft className="w-4 h-4" />
+					</Button>
+					<div>
+						<h3 className="text-lg font-medium">Membros do Cenário</h3>
+						<p className="text-sm text-gray-500">{selectedScenario?.name}</p>
+					</div>
 				</div>
+				{canManageMembers && (
+					<Button
+						onClick={handleAddMember}
+						className="bg-emerald-600 hover:bg-emerald-700"
+					>
+						<Plus className="w-4 h-4 mr-2" />
+						Adicionar Membro
+					</Button>
+				)}
 			</div>
 
-			<div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 text-center">
-				<Users className="w-8 h-8 text-yellow-600 dark:text-yellow-500 mx-auto mb-2" />
-				<h4 className="font-medium text-yellow-800 dark:text-yellow-200">
-					Gerenciamento de Membros
-				</h4>
-				<p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-					Esta funcionalidade está em desenvolvimento. Em breve você poderá
-					adicionar e remover usuários deste cenário.
-				</p>
+			{isMembersLoading ? (
+				<div className="flex justify-center py-8">
+					<Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+				</div>
+			) : members.length === 0 ? (
+				<div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+					<Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+					<p className="text-gray-500">Nenhum membro neste cenário.</p>
+				</div>
+			) : (
+				<div className="border rounded-lg overflow-hidden">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Usuário</TableHead>
+								<TableHead>Email</TableHead>
+								<TableHead>Cargo</TableHead>
+								{canManageMembers && (
+									<TableHead className="w-[100px]"></TableHead>
+								)}
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{members.map((member) => (
+								<TableRow key={member.id}>
+									<TableCell className="font-medium">
+										{member.UserTenant.user.username}
+									</TableCell>
+									<TableCell>{member.UserTenant.user.email}</TableCell>
+									<TableCell>
+										<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+											{member.ScenarioRole.name}
+										</span>
+									</TableCell>
+									{canManageMembers && (
+										<TableCell>
+											<DropdownMenu>
+												<DropdownMenuTrigger asChild>
+													<Button variant="ghost" size="sm">
+														<MoreHorizontal className="w-4 h-4" />
+													</Button>
+												</DropdownMenuTrigger>
+												<DropdownMenuContent align="end">
+													<DropdownMenuItem
+														onClick={() => handleEditMember(member)}
+													>
+														<Pencil className="w-4 h-4 mr-2" />
+														Alterar Cargo
+													</DropdownMenuItem>
+													<DropdownMenuItem
+														className="text-red-600"
+														onClick={() => handleRemoveMember(member)}
+													>
+														<Trash2 className="w-4 h-4 mr-2" />
+														Remover
+													</DropdownMenuItem>
+												</DropdownMenuContent>
+											</DropdownMenu>
+										</TableCell>
+									)}
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				</div>
+			)}
+		</div>
+	);
+
+	const renderRoles = () => (
+		<div className="space-y-4">
+			<div className="flex items-center justify-between mb-4">
+				<div className="flex items-center gap-4">
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={() => setViewMode("list")}
+					>
+						<ArrowLeft className="w-4 h-4" />
+					</Button>
+					<div>
+						<h3 className="text-lg font-medium">Cargos do Cenário</h3>
+						<p className="text-sm text-gray-500">{selectedScenario?.name}</p>
+					</div>
+				</div>
+				{canEdit && (
+					<Button
+						onClick={handleAddRole}
+						className="bg-emerald-600 hover:bg-emerald-700"
+					>
+						<Plus className="w-4 h-4 mr-2" />
+						Novo Cargo
+					</Button>
+				)}
 			</div>
 
-			{/* Placeholder visual para a lista de membros */}
-			<div className="opacity-50 pointer-events-none select-none filter blur-[1px]">
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Usuário</TableHead>
-							<TableHead>Email</TableHead>
-							<TableHead>Cargo</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						<TableRow>
-							<TableCell>Exemplo Usuário</TableCell>
-							<TableCell>usuario@exemplo.com</TableCell>
-							<TableCell>Operador</TableCell>
-						</TableRow>
-						<TableRow>
-							<TableCell>Admin Exemplo</TableCell>
-							<TableCell>admin@exemplo.com</TableCell>
-							<TableCell>Administrador</TableCell>
-						</TableRow>
-					</TableBody>
-				</Table>
-			</div>
+			{isRolesLoading ? (
+				<div className="flex justify-center py-8">
+					<Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+				</div>
+			) : scenarioRoles.length === 0 ? (
+				<div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+					<Shield className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+					<p className="text-gray-500">Nenhum cargo encontrado.</p>
+				</div>
+			) : (
+				<div className="border rounded-lg overflow-hidden">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Nome</TableHead>
+								<TableHead>Descrição</TableHead>
+								<TableHead>Permissões</TableHead>
+								{canEdit && <TableHead className="w-[100px]"></TableHead>}
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{scenarioRoles.map((role) => (
+								<TableRow key={role.id}>
+									<TableCell className="font-medium">{role.name}</TableCell>
+									<TableCell>{role.description || "-"}</TableCell>
+									<TableCell>
+										<span className="text-xs text-gray-500">
+											{role.resources?.length || 0} permissões
+										</span>
+									</TableCell>
+									{canEdit && (
+										<TableCell>
+											<DropdownMenu>
+												<DropdownMenuTrigger asChild>
+													<Button variant="ghost" size="sm">
+														<MoreHorizontal className="w-4 h-4" />
+													</Button>
+												</DropdownMenuTrigger>
+												<DropdownMenuContent align="end">
+													<DropdownMenuItem
+														onClick={() => handleEditRole(role)}
+													>
+														<Pencil className="w-4 h-4 mr-2" />
+														Editar
+													</DropdownMenuItem>
+													<DropdownMenuItem
+														className="text-red-600"
+														onClick={() => handleDeleteRole(role)}
+													>
+														<Trash2 className="w-4 h-4 mr-2" />
+														Excluir
+													</DropdownMenuItem>
+												</DropdownMenuContent>
+											</DropdownMenu>
+										</TableCell>
+									)}
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				</div>
+			)}
 		</div>
 	);
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-2xl bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
-				<DialogHeader>
-					<DialogTitle>Gerenciar Cenários</DialogTitle>
-					<DialogDescription>
-						Crie e gerencie os cenários da sua instituição.
-					</DialogDescription>
-				</DialogHeader>
+		<>
+			<Dialog open={open} onOpenChange={onOpenChange}>
+				<DialogContent className="max-w-2xl bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
+					<DialogHeader>
+						<DialogTitle>Gerenciar Cenários</DialogTitle>
+						<DialogDescription>
+							Crie e gerencie os cenários da sua instituição.
+						</DialogDescription>
+					</DialogHeader>
 
-				<div className="mt-4">
-					{viewMode === "list" && renderList()}
-					{viewMode === "edit" && renderEdit()}
-					{viewMode === "members" && renderMembers()}
-				</div>
-			</DialogContent>
-		</Dialog>
+					<div className="mt-4">
+						{viewMode === "list" && renderList()}
+						{viewMode === "edit" && renderEdit()}
+						{viewMode === "members" && renderMembers()}
+						{viewMode === "roles" && renderRoles()}
+					</div>
+				</DialogContent>
+			</Dialog>
+
+			{selectedScenario && (
+				<>
+					<AssignUserScenarioDialog
+						open={assignDialogOpen}
+						onOpenChange={setAssignDialogOpen}
+						tenantId={tenantId}
+						scenarioId={selectedScenario.id}
+						scenarioRoles={scenarioRoles}
+						editingUser={editingMember}
+						onSaved={() => {
+							setAssignDialogOpen(false);
+							fetchMembers();
+						}}
+					/>
+					<ScenarioRoleDialog
+						open={roleDialogOpen}
+						onOpenChange={setRoleDialogOpen}
+						tenantId={tenantId}
+						scenarioId={selectedScenario.id}
+						editingRole={editingRole}
+						onSaved={() => {
+							setRoleDialogOpen(false);
+							fetchScenarioRoles();
+						}}
+					/>
+				</>
+			)}
+		</>
 	);
 }

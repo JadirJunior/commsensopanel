@@ -3,6 +3,7 @@ export interface RoleModel {
 	name: string;
 	description: string;
 	permissions: string[];
+	resources?: string[];
 }
 
 export interface Scenario {
