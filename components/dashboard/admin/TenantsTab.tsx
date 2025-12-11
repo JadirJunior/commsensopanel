@@ -354,9 +354,7 @@ export function TenantsTab() {
 										</div>
 									</TableCell>
 									<TableCell>
-										<Badge variant="outline" className="font-mono text-xs">
-											{tenant.slug}
-										</Badge>
+										<Badge className="font-mono text-xs">{tenant.slug}</Badge>
 									</TableCell>
 									<TableCell className="text-center">
 										<div className="flex items-center justify-center gap-1 text-slate-300">

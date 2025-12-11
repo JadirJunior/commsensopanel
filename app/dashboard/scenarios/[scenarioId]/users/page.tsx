@@ -295,7 +295,7 @@ export default function ScenarioUsersPage() {
 												</div>
 											</TableCell>
 											<TableCell>
-												<Badge variant="outline" className="bg-indigo-50/50">
+												<Badge className="bg-indigo-50/50">
 													{scenarioUser.ScenarioRole?.name || "Sem Cargo"}
 												</Badge>
 											</TableCell>
