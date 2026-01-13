@@ -148,16 +148,16 @@ export function AssignUserScenarioDialog({
 
 			if (editingUser) {
 				// Atualiza cargo do usuário
-				await apiService.fetchWithAuth(
-					`/scenario-members/${scenarioId}/${editingUser.id}`,
-					{
-						method: "PUT",
-						body: JSON.stringify({ scenarioRoleId: selectedRoleId }),
-						headers: {
-							"x-tenant-id": tenantId,
-						},
-					}
-				);
+				await apiService.fetchWithAuth(`/scenario-members/${scenarioId}`, {
+					method: "PUT",
+					body: JSON.stringify({
+						scenarioRoleId: selectedRoleId,
+						userScenarioId: editingUser.id,
+					}),
+					headers: {
+						"x-tenant-id": tenantId,
+					},
+				});
 				toast.success("Cargo atualizado com sucesso.");
 			} else {
 				// Adiciona novo usuário ao cenário
@@ -167,6 +167,9 @@ export function AssignUserScenarioDialog({
 						scenarioId,
 						userTenantId: selectedUserTenantId,
 						scenarioRoleId: selectedRoleId,
+						userEmail:
+							availableUsers.find((u) => u.id === selectedUserTenantId)?.user
+								.email || "",
 					}),
 					headers: {
 						"x-tenant-id": tenantId,

@@ -133,11 +133,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		router.push("/login");
 	}, [router]);
 
+	const refreshUser = useCallback(async () => {
+		if (!accessToken) return;
+
+		try {
+			const currentUser = await apiService.getCurrentUser(accessToken);
+			setUser(currentUser);
+			Cookies.set(USER_KEY, JSON.stringify(currentUser), { expires: 7 });
+		} catch (error) {
+			console.error("[AuthContext] Erro ao atualizar usuário:", error);
+		}
+	}, [accessToken]);
+
 	const value: AuthContextType = {
 		user,
 		accessToken,
 		login,
 		logout,
+		refreshUser,
 		isAuthenticated: !!user && !!accessToken,
 		isLoading,
 	};

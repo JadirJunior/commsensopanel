@@ -35,11 +35,11 @@ export function ProfileDialog({ children }: ProfileDialogProps) {
 
 				<div className="flex flex-col items-center justify-center py-6 border-b border-border">
 					<div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-3 ring-4 ring-background shadow-lg">
-						<span className="text-3xl font-bold text-primary">
+						<span className="text-3xl font-bold ">
 							{(user.name || user.username).charAt(0).toUpperCase()}
 						</span>
 					</div>
-					<h3 className="text-lg font-semibold text-foreground">
+					<h3 className="text-lg font-semibold ">
 						{user.name || user.username}
 					</h3>
 					<p className="text-sm text-muted-foreground">{user.email}</p>
@@ -52,9 +52,7 @@ export function ProfileDialog({ children }: ProfileDialogProps) {
 							<p className="text-sm font-medium text-muted-foreground">
 								Nome de Usuário
 							</p>
-							<p className="text-base font-medium text-foreground">
-								{user.username}
-							</p>
+							<p className="text-base font-medium ">{user.username}</p>
 						</div>
 					</div>
 
@@ -62,9 +60,7 @@ export function ProfileDialog({ children }: ProfileDialogProps) {
 						<Mail className="w-5 h-5 text-primary mt-0.5" />
 						<div className="space-y-1">
 							<p className="text-sm font-medium text-muted-foreground">Email</p>
-							<p className="text-base font-medium text-foreground">
-								{user.email}
-							</p>
+							<p className="text-base font-medium">{user.email}</p>
 						</div>
 					</div>
 

@@ -43,6 +43,7 @@ import { useVerifyPermissions } from "@/components/rbac";
 import { TENANT_PERMISSIONS } from "@/constants/permissions";
 import { AssignUserScenarioDialog } from "./AssignUserScenarioDialog";
 import { ScenarioRoleDialog } from "../roles/ScenarioRoleDialog";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 interface Scenario {
 	id: string;
@@ -82,12 +83,14 @@ interface ScenariosManagementDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	tenantId: string;
+	onDataChanged?: () => void;
 }
 
 export function ScenariosManagementDialog({
 	open,
 	onOpenChange,
 	tenantId,
+	onDataChanged,
 }: ScenariosManagementDialogProps) {
 	const { can } = useVerifyPermissions({
 		scope: "tenant",
@@ -120,6 +123,23 @@ export function ScenariosManagementDialog({
 	const [roleDialogOpen, setRoleDialogOpen] = useState(false);
 	const [editingRole, setEditingRole] = useState<ScenarioRole | null>(null);
 
+	// Confirmation Dialogs State
+	const [deleteScenarioDialog, setDeleteScenarioDialog] = useState<{
+		open: boolean;
+		scenario: Scenario | null;
+	}>({ open: false, scenario: null });
+	const [removeMemberDialog, setRemoveMemberDialog] = useState<{
+		open: boolean;
+		member: ScenarioUser | null;
+	}>({ open: false, member: null });
+	const [deleteRoleDialog, setDeleteRoleDialog] = useState<{
+		open: boolean;
+		role: ScenarioRole | null;
+	}>({ open: false, role: null });
+
+	// Track if any changes were made
+	const [hasChanges, setHasChanges] = useState(false);
+
 	// Busca cenários do tenant
 	const fetchScenarios = useCallback(async () => {
 		try {
@@ -145,8 +165,12 @@ export function ScenariosManagementDialog({
 			fetchScenarios();
 			setViewMode("list");
 			setSelectedScenario(null);
+			setHasChanges(false);
+		} else if (!open && hasChanges && onDataChanged) {
+			// Call onDataChanged when dialog closes if there were changes
+			onDataChanged();
 		}
-	}, [open, fetchScenarios]);
+	}, [open, fetchScenarios, hasChanges, onDataChanged]);
 
 	// Busca membros do cenário
 	const fetchMembers = useCallback(async () => {
@@ -262,6 +286,7 @@ export function ScenariosManagementDialog({
 				});
 				toast.success("Cenário criado com sucesso.");
 			}
+			setHasChanges(true);
 			fetchScenarios();
 			setViewMode("list");
 		} catch (error) {
@@ -272,17 +297,25 @@ export function ScenariosManagementDialog({
 		}
 	};
 
-	const handleDelete = async (scenario: Scenario) => {
-		if (!confirm("Tem certeza que deseja excluir este cenário?")) return;
+	const handleDelete = (scenario: Scenario) => {
+		setDeleteScenarioDialog({ open: true, scenario });
+	};
+
+	const confirmDeleteScenario = async () => {
+		if (!deleteScenarioDialog.scenario) return;
 
 		try {
-			await apiService.fetchWithAuth(`/scenario/${scenario.id}`, {
-				method: "DELETE",
-				headers: {
-					"x-tenant-id": tenantId,
-				},
-			});
+			await apiService.fetchWithAuth(
+				`/scenario/${deleteScenarioDialog.scenario.id}`,
+				{
+					method: "DELETE",
+					headers: {
+						"x-tenant-id": tenantId,
+					},
+				}
+			);
 			toast.success("Cenário excluído com sucesso.");
+			setHasChanges(true);
 			fetchScenarios();
 		} catch (error) {
 			console.error("Erro ao excluir cenário:", error);
@@ -290,13 +323,16 @@ export function ScenariosManagementDialog({
 		}
 	};
 
-	const handleRemoveMember = async (member: ScenarioUser) => {
-		if (!confirm("Tem certeza que deseja remover este usuário do cenário?"))
-			return;
+	const handleRemoveMember = (member: ScenarioUser) => {
+		setRemoveMemberDialog({ open: true, member });
+	};
+
+	const confirmRemoveMember = async () => {
+		if (!removeMemberDialog.member) return;
 
 		try {
 			await apiService.fetchWithAuth(
-				`/scenario-members/${selectedScenario?.id}/${member.id}`,
+				`/scenario-members/${selectedScenario?.id}/${removeMemberDialog.member.id}`,
 				{
 					method: "DELETE",
 					headers: {
@@ -305,6 +341,7 @@ export function ScenariosManagementDialog({
 				}
 			);
 			toast.success("Usuário removido com sucesso.");
+			setHasChanges(true);
 			fetchMembers();
 		} catch (error) {
 			console.error("Erro ao remover usuário:", error);
@@ -333,12 +370,16 @@ export function ScenariosManagementDialog({
 		setRoleDialogOpen(true);
 	};
 
-	const handleDeleteRole = async (role: ScenarioRole) => {
-		if (!confirm("Tem certeza que deseja excluir este cargo?")) return;
+	const handleDeleteRole = (role: ScenarioRole) => {
+		setDeleteRoleDialog({ open: true, role });
+	};
+
+	const confirmDeleteRole = async () => {
+		if (!deleteRoleDialog.role) return;
 
 		try {
 			await apiService.fetchWithAuth(
-				`/scenario/${selectedScenario?.id}/roles/${role.id}`,
+				`/scenario/${selectedScenario?.id}/roles/${deleteRoleDialog.role.id}`,
 				{
 					method: "DELETE",
 					headers: {
@@ -347,6 +388,7 @@ export function ScenariosManagementDialog({
 				}
 			);
 			toast.success("Cargo excluído com sucesso.");
+			setHasChanges(true);
 			fetchScenarioRoles();
 		} catch (error) {
 			console.error("Erro ao excluir cargo:", error);
@@ -719,6 +761,7 @@ export function ScenariosManagementDialog({
 						editingUser={editingMember}
 						onSaved={() => {
 							setAssignDialogOpen(false);
+							setHasChanges(true);
 							fetchMembers();
 						}}
 					/>
@@ -730,12 +773,45 @@ export function ScenariosManagementDialog({
 						editingRole={editingRole}
 						onSaved={() => {
 							setRoleDialogOpen(false);
+							setHasChanges(true);
 							fetchScenarioRoles();
 						}}
 						scope="tenant"
 					/>
 				</>
 			)}
+
+			<ConfirmationDialog
+				open={deleteScenarioDialog.open}
+				onOpenChange={(open) =>
+					setDeleteScenarioDialog({ open, scenario: null })
+				}
+				onConfirm={confirmDeleteScenario}
+				title="Excluir Cenário"
+				description={`Tem certeza que deseja excluir o cenário "${deleteScenarioDialog.scenario?.name}"? Esta ação não pode ser desfeita.`}
+				confirmText="Excluir"
+				cancelText="Cancelar"
+			/>
+
+			<ConfirmationDialog
+				open={removeMemberDialog.open}
+				onOpenChange={(open) => setRemoveMemberDialog({ open, member: null })}
+				onConfirm={confirmRemoveMember}
+				title="Remover Usuário"
+				description={`Tem certeza que deseja remover o usuário "${removeMemberDialog.member?.UserTenant.user.username}" deste cenário?`}
+				confirmText="Remover"
+				cancelText="Cancelar"
+			/>
+
+			<ConfirmationDialog
+				open={deleteRoleDialog.open}
+				onOpenChange={(open) => setDeleteRoleDialog({ open, role: null })}
+				onConfirm={confirmDeleteRole}
+				title="Excluir Cargo"
+				description={`Tem certeza que deseja excluir o cargo "${deleteRoleDialog.role?.name}"? Esta ação não pode ser desfeita.`}
+				confirmText="Excluir"
+				cancelText="Cancelar"
+			/>
 		</>
 	);
 }

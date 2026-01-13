@@ -46,6 +46,7 @@ import { toast } from "sonner";
 import { apiService } from "@/lib/api";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SensorCard } from "./SensorCard";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Tipos da API
 interface SensorCategory {
@@ -490,7 +491,7 @@ export function BoilerplatesTab() {
 				open={!!viewingDevice}
 				onOpenChange={() => setViewingDevice(null)}
 			>
-				<DialogContent className="sm:max-w-[500px] bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
+				<DialogContent className="sm:max-w-[600px] overflow-hidden  bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
 					{viewingDevice && (
 						<>
 							<DialogHeader>
@@ -499,9 +500,7 @@ export function BoilerplatesTab() {
 										<Cpu className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
 									</div>
 									<div>
-										<DialogTitle className="text-gray-900">
-											{viewingDevice.name}
-										</DialogTitle>
+										<DialogTitle>{viewingDevice.name}</DialogTitle>
 										<DialogDescription className="flex items-center gap-2 mt-1">
 											<Badge
 												variant={
@@ -514,24 +513,26 @@ export function BoilerplatesTab() {
 									</div>
 								</div>
 							</DialogHeader>
-							<div className="space-y-4 py-4">
-								<div>
-									<h4 className="text-sm font-semibold text-gray-900  mb-3">
-										Sensores Configurados ({viewingDevice.sensors.length})
-									</h4>
-									<div className="space-y-2">
-										{viewingDevice.sensors.map((sensor) => (
-											<SensorCard
-												key={sensor.id}
-												name={sensor.Category.name}
-												unit={sensor.Category.unit}
-												id={sensor.id}
-												variant="view"
-											/>
-										))}
+							<ScrollArea className="max-h-96">
+								<div className="space-y-4 py-4">
+									<div>
+										<h4 className="text-sm font-semibold   mb-3">
+											Sensores Configurados ({viewingDevice.sensors.length})
+										</h4>
+										<div className="space-y-2">
+											{viewingDevice.sensors.map((sensor) => (
+												<SensorCard
+													key={sensor.id}
+													name={sensor.Category.name}
+													unit={sensor.Category.unit}
+													id={sensor.id}
+													variant="view"
+												/>
+											))}
+										</div>
 									</div>
 								</div>
-							</div>
+							</ScrollArea>
 							<DialogFooter>
 								<Button
 									variant="outline"

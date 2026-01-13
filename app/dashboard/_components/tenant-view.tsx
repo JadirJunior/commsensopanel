@@ -24,6 +24,7 @@ import {
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ScenariosManagementDialog } from "@/components/dashboard/scenarios/ScenariosManagementDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Componente que renderiza a view do tenant selecionado
 export function TenantView({
@@ -33,12 +34,21 @@ export function TenantView({
 	tenant: UserTenant;
 	onBack: () => void;
 }) {
-	const router = useRouter(); // Adicionado hook useRouter
+	const router = useRouter();
+	const { refreshUser } = useAuth();
 	const [activeTab, setActiveTab] = useState<"scenarios" | "users" | "roles">(
 		"scenarios"
 	);
 	const [isScenariosManagementOpen, setIsScenariosManagementOpen] =
 		useState(false);
+
+	const handleScenariosManagementChange = async (state: boolean) => {
+		console.log("state", state);
+		if (state === false) {
+			await refreshUser();
+		}
+		setIsScenariosManagementOpen(state);
+	};
 
 	const { can } = useVerifyPermissions({
 		scope: "tenant",
@@ -218,8 +228,9 @@ export function TenantView({
 			{/* Dialog para gerenciar cenários */}
 			<ScenariosManagementDialog
 				open={isScenariosManagementOpen}
-				onOpenChange={setIsScenariosManagementOpen}
+				onOpenChange={handleScenariosManagementChange}
 				tenantId={tenant.tenantId}
+				onDataChanged={refreshUser}
 			/>
 		</div>
 	);

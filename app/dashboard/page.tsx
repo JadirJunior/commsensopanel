@@ -11,34 +11,30 @@ import {
 } from "@/components/ui/card";
 import {
 	LogOut,
-	User,
 	Building2,
 	UserCircle,
 	ArrowLeft,
-	LayoutDashboard,
-	Users,
-	Shield,
-	Settings,
 	ShieldCheck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { UserTenant } from "@/types/auth";
 import { ProfileDialog } from "@/components/profile/ProfileDialog";
-import { RolesTab } from "@/components/dashboard/roles/RolesTab";
-import { UsersTab } from "@/components/dashboard/users/UsersTab";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { AdminPanel } from "@/components/dashboard/admin";
-import { TENANT_PERMISSIONS } from "@/constants/permissions";
-import { VerifyPermissions } from "@/components/rbac";
 import { cn } from "@/lib/utils";
 import { TenantView } from "./_components/tenant-view";
 
 export default function DashboardPage() {
 	const { user, logout, isAuthenticated, isLoading } = useAuth();
 	const router = useRouter();
-	const [selectedTenant, setSelectedTenant] = useState<UserTenant | null>(null);
+
+	const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+
+	const selectedTenant = selectedTenantId
+		? user?.userTenants?.find((ut) => ut.id === selectedTenantId) ?? null
+		: null;
+
 	const [showAdminPanel, setShowAdminPanel] = useState(false);
 
 	// Verifica se o usuário é administrador do sistema
@@ -108,7 +104,7 @@ export default function DashboardPage() {
 								size="sm"
 								onClick={() => {
 									setShowAdminPanel(!showAdminPanel);
-									setSelectedTenant(null);
+									setSelectedTenantId(null);
 								}}
 								className={cn(
 									"transition-all",
@@ -151,7 +147,7 @@ export default function DashboardPage() {
 				) : selectedTenant ? (
 					<TenantView
 						tenant={selectedTenant}
-						onBack={() => setSelectedTenant(null)}
+						onBack={() => setSelectedTenantId(null)}
 					/>
 				) : (
 					// View de Seleção de Tenant
@@ -171,7 +167,7 @@ export default function DashboardPage() {
 								<Card
 									key={userTenant.id}
 									className="hover:shadow-xl transition-all duration-300 cursor-pointer border-t-4 border-t-emerald-500 hover:-translate-y-1 group"
-									onClick={() => setSelectedTenant(userTenant)}
+									onClick={() => setSelectedTenantId(userTenant.id)}
 								>
 									<CardHeader>
 										<div className="flex justify-between items-start mb-4">
