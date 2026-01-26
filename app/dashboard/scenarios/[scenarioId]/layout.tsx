@@ -13,6 +13,7 @@ import {
 	ArrowLeft,
 	Settings,
 	Activity,
+	LineChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,7 @@ export default function ScenarioLayout({ children }: { children: ReactNode }) {
 
 		for (const ut of user.userTenants) {
 			const us = ut.UserScenarios?.find(
-				(scenario) => scenario.Scenario?.id === scenarioId
+				(scenario) => scenario.Scenario?.id === scenarioId,
 			);
 			if (us) {
 				return { userTenant: ut, userScenario: us };
@@ -60,6 +61,13 @@ export default function ScenarioLayout({ children }: { children: ReactNode }) {
 			label: "Visão Geral",
 			icon: BarChart3,
 			href: `/dashboard/scenarios/${scenarioId}`,
+		},
+		{
+			id: "measurements",
+			label: "Medições",
+			icon: LineChart,
+			href: `/dashboard/scenarios/${scenarioId}/measurements`,
+			permission: SCENARIO_PERMISSIONS.MEASUREMENT_VIEW,
 		},
 		{
 			id: "devices",
@@ -119,7 +127,7 @@ export default function ScenarioLayout({ children }: { children: ReactNode }) {
 
 		// Verifica os outros itens
 		const activeItem = navItems.find(
-			(item) => item.id !== "overview" && normalizedPath.includes(item.href)
+			(item) => item.id !== "overview" && normalizedPath.includes(item.href),
 		);
 		return activeItem?.id || "overview";
 	};
@@ -165,7 +173,7 @@ export default function ScenarioLayout({ children }: { children: ReactNode }) {
 					"w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
 					isActive
 						? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-l-2 border-emerald-500"
-						: "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
+						: "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100",
 				)}
 			>
 				<Icon className={cn("w-5 h-5", isActive && "text-emerald-500")} />

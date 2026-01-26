@@ -2,6 +2,20 @@ export interface DeviceBoilerplate {
 	id: string;
 	name: string;
 	enabled: boolean;
+	sensors?: Sensor[];
+}
+
+export interface Sensor {
+	id: string;
+	categoryId: string;
+	deviceId: string;
+	Category?: SensorCategory;
+}
+
+export interface SensorCategory {
+	id: string;
+	name: string;
+	unit: string;
 }
 
 export interface DeviceScenario {
