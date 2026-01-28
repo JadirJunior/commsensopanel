@@ -26,10 +26,12 @@ import {
 	Measurement,
 	FilterMeasurementsDTO,
 	MeasurementsResponse,
+	DeviceStatistics,
 } from "@/types/measurement";
 import {
 	MeasurementChart,
 	MeasurementFilters,
+	MeasurementStats,
 	MeasurementTable,
 } from "@/components/dashboard/measurements";
 import { VerifyPermissions } from "@/components/rbac";
@@ -42,6 +44,7 @@ export default function MeasurementsPage() {
 
 	const [measurements, setMeasurements] = useState<Measurement[]>([]);
 	const [total, setTotal] = useState(0);
+	const [statistics, setStatistics] = useState<DeviceStatistics>({});
 	const [devices, setDevices] = useState<DeviceScenario[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isLoadingDevices, setIsLoadingDevices] = useState(true);
@@ -66,7 +69,7 @@ export default function MeasurementsPage() {
 		try {
 			setIsLoadingDevices(true);
 			const response = await apiService.fetchWithAuth<DeviceScenario[]>(
-				"/device-scenario",
+				"/device-scenario?status=active",
 				{
 					headers: {
 						"x-tenant-id": tenantId,
@@ -107,6 +110,7 @@ export default function MeasurementsPage() {
 				if (response.data) {
 					setMeasurements(response.data.measurements);
 					setTotal(response.data.total);
+					setStatistics(response.data.statistics || {});
 					setLastFetchTime(new Date());
 				}
 			} catch (error) {
@@ -177,68 +181,13 @@ export default function MeasurementsPage() {
 					isLoading={isLoading}
 				/>
 
-				{/* Cards de Estatísticas */}
+				{/* Estatísticas por Dispositivo */}
 				{measurements.length > 0 && (
-					<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-						<Card className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
-							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-								<CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-									Total de Registros
-								</CardTitle>
-								<Database className="w-4 h-4 text-blue-500" />
-							</CardHeader>
-							<CardContent>
-								<div className="text-2xl font-bold text-gray-900 dark:text-white">
-									{stats.total.toLocaleString()}
-								</div>
-								<p className="text-xs text-gray-500 dark:text-gray-400">
-									de {total.toLocaleString()} disponíveis
-								</p>
-							</CardContent>
-						</Card>
-
-						<Card className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
-							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-								<CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-									Valor Mínimo
-								</CardTitle>
-								<TrendingUp className="w-4 h-4 text-emerald-500 rotate-180" />
-							</CardHeader>
-							<CardContent>
-								<div className="text-2xl font-bold text-gray-900 dark:text-white">
-									{stats.min.toFixed(2)}
-								</div>
-							</CardContent>
-						</Card>
-
-						<Card className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
-							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-								<CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-									Valor Máximo
-								</CardTitle>
-								<TrendingUp className="w-4 h-4 text-red-500" />
-							</CardHeader>
-							<CardContent>
-								<div className="text-2xl font-bold text-gray-900 dark:text-white">
-									{stats.max.toFixed(2)}
-								</div>
-							</CardContent>
-						</Card>
-
-						<Card className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
-							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-								<CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-									Média
-								</CardTitle>
-								<BarChart3 className="w-4 h-4 text-amber-500" />
-							</CardHeader>
-							<CardContent>
-								<div className="text-2xl font-bold text-gray-900 dark:text-white">
-									{stats.avg.toFixed(2)}
-								</div>
-							</CardContent>
-						</Card>
-					</div>
+					<MeasurementStats
+						statistics={statistics}
+						devices={devices}
+						measurements={measurements}
+					/>
 				)}
 
 				{/* Gráfico e Tabela com Tabs */}

@@ -17,6 +17,7 @@ import { FilterMeasurementsDTO } from "@/types/measurement";
 import { DeviceScenario, Sensor } from "@/types/device";
 import { Search, X, Filter } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
 
 dayjs.locale("pt-br");
 
@@ -46,12 +47,40 @@ export function MeasurementFilters({
 	const [period, setPeriod] = useState<PeriodOption>("24h");
 	const [dtStart, setDtStart] = useState<Date | undefined>(undefined);
 	const [dtEnd, setDtEnd] = useState<Date | undefined>(undefined);
+	const [selectedSpotId, setSelectedSpotId] = useState<string>("all");
 	const [selectedDevices, setSelectedDevices] = useState<string[]>([]);
 	// Agora armazena categoryIds ao invés de sensorIds individuais
 	const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-	const [orderDirection, setOrderDirection] = useState<"asc" | "desc">("asc");
-	const [limit, setLimit] = useState<string>("500");
 	const [showFilters, setShowFilters] = useState(true);
+
+	// Lista única de spots disponíveis (extraídos dos dispositivos)
+	const availableSpots = useMemo(() => {
+		const spotMap = new Map<string, { id: string; name: string }>();
+		devices.forEach((device) => {
+			if (device.Spot && !spotMap.has(device.Spot.id)) {
+				spotMap.set(device.Spot.id, {
+					id: device.Spot.id,
+					name: device.Spot.name,
+				});
+			}
+		});
+		return Array.from(spotMap.values());
+	}, [devices]);
+
+	// Dispositivos filtrados pelo spot selecionado
+	const filteredDevices = useMemo(() => {
+		if (selectedSpotId === "all") {
+			return devices;
+		}
+		return devices.filter((d) => d.spotId === selectedSpotId);
+	}, [devices, selectedSpotId]);
+
+	// Limpa seleção de dispositivos quando muda o spot
+	const handleSpotChange = (spotId: string) => {
+		setSelectedSpotId(spotId);
+		setSelectedDevices([]);
+		setSelectedCategories([]);
+	};
 
 	// Mapa de sensores por dispositivo
 	const sensorsByDevice = useMemo(() => {
@@ -126,11 +155,11 @@ export function MeasurementFilters({
 	};
 
 	const handleSelectAllDevices = () => {
-		if (selectedDevices.length === devices.length) {
+		if (selectedDevices.length === filteredDevices.length) {
 			setSelectedDevices([]);
 			setSelectedCategories([]);
 		} else {
-			setSelectedDevices(devices.map((d) => d.id));
+			setSelectedDevices(filteredDevices.map((d) => d.id));
 		}
 	};
 
@@ -143,12 +172,23 @@ export function MeasurementFilters({
 	};
 
 	const handleFilter = () => {
+		// Validação: exige seleção de dispositivos
+		if (selectedDevices.length === 0) {
+			toast.error("Selecione pelo menos um dispositivo");
+			return;
+		}
+
+		// Validação: exige seleção de tipos de sensores
+		if (selectedCategories.length === 0) {
+			toast.error("Selecione pelo menos um tipo de sensor");
+			return;
+		}
+
 		const filters: FilterMeasurementsDTO = {
 			orderBy: {
 				field: "dtMeasure",
-				direction: orderDirection,
+				direction: "asc",
 			},
-			limit: parseInt(limit) || 500,
 		};
 
 		if (period !== "custom") {
@@ -158,14 +198,8 @@ export function MeasurementFilters({
 			if (dtEnd) filters.dtEnd = dayjs(dtEnd).toISOString();
 		}
 
-		if (selectedDevices.length > 0) {
-			filters.deviceIds = selectedDevices;
-		}
-
-		// Usa os sensorIds calculados baseado nas categorias selecionadas
-		if (selectedSensorIds.length > 0) {
-			filters.sensorIds = selectedSensorIds;
-		}
+		filters.deviceIds = selectedDevices;
+		filters.sensorIds = selectedSensorIds;
 
 		onFilter(filters);
 	};
@@ -174,10 +208,9 @@ export function MeasurementFilters({
 		setPeriod("24h");
 		setDtStart(undefined);
 		setDtEnd(undefined);
+		setSelectedSpotId("all");
 		setSelectedDevices([]);
 		setSelectedCategories([]);
-		setOrderDirection("asc");
-		setLimit("500");
 	};
 
 	return (
@@ -235,43 +268,38 @@ export function MeasurementFilters({
 						)}
 					</div>
 
-					{/* Ordenação e Limite */}
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div className="space-y-2">
-							<Label htmlFor="order">Ordenação</Label>
-							<Select
-								value={orderDirection}
-								onValueChange={(v) => setOrderDirection(v as "asc" | "desc")}
-							>
-								<SelectTrigger>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="asc">Mais antigo primeiro</SelectItem>
-									<SelectItem value="desc">Mais recente primeiro</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="limit">Limite de registros</Label>
-							<Select value={limit} onValueChange={setLimit}>
-								<SelectTrigger>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="100">100 registros</SelectItem>
-									<SelectItem value="500">500 registros</SelectItem>
-									<SelectItem value="1000">1.000 registros</SelectItem>
-									<SelectItem value="5000">5.000 registros</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-					</div>
-
-					{/* Dispositivos e Sensores */}
+					{/* Spot e Dispositivos */}
 					{devices.length > 0 && (
 						<div className="space-y-4">
+							{/* Seletor de Spot */}
+							{availableSpots.length > 0 && (
+								<div className="space-y-2">
+									<Label>Spot (Local)</Label>
+									<Select
+										value={selectedSpotId}
+										onValueChange={handleSpotChange}
+									>
+										<SelectTrigger className="max-w-xs">
+											<SelectValue placeholder="Selecione um spot" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="all">Todos os spots</SelectItem>
+											{availableSpots.map((spot) => (
+												<SelectItem key={spot.id} value={spot.id}>
+													{spot.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+									{selectedSpotId !== "all" && (
+										<p className="text-xs text-gray-500 dark:text-gray-400">
+											Mostrando {filteredDevices.length} dispositivo(s) do spot
+											selecionado
+										</p>
+									)}
+								</div>
+							)}
+
 							{/* Dispositivos */}
 							<div className="space-y-2">
 								<div className="flex items-center justify-between">
@@ -282,13 +310,14 @@ export function MeasurementFilters({
 										onClick={handleSelectAllDevices}
 										className="text-xs"
 									>
-										{selectedDevices.length === devices.length
+										{selectedDevices.length === filteredDevices.length &&
+										filteredDevices.length > 0
 											? "Desmarcar todos"
 											: "Selecionar todos"}
 									</Button>
 								</div>
 								<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-40 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-									{devices.map((device) => {
+									{filteredDevices.map((device) => {
 										const sensors = sensorsByDevice.get(device.id) || [];
 										const isSelected = selectedDevices.includes(device.id);
 

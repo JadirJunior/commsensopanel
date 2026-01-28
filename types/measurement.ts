@@ -34,7 +34,18 @@ export interface FilterMeasurementsDTO {
 	sensorIds?: string[];
 }
 
+export interface SensorStatistics {
+	min: number;
+	max: number;
+	avg: number;
+	total: number;
+}
+
+// Estrutura: { deviceId: { sensorId: stats } }
+export type DeviceStatistics = Record<string, Record<string, SensorStatistics>>;
+
 export interface MeasurementsResponse {
 	measurements: Measurement[];
 	total: number;
+	statistics: DeviceStatistics;
 }
