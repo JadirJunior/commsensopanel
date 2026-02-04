@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	Card,
 	CardContent,
@@ -18,6 +18,7 @@ import {
 	Clock,
 	TableIcon,
 	LineChart,
+	RefreshCw,
 } from "lucide-react";
 import { apiService } from "@/lib/api";
 import { toast } from "sonner";
@@ -32,10 +33,18 @@ import {
 	MeasurementChart,
 	MeasurementFilters,
 	MeasurementStats,
-	MeasurementTable,
 } from "@/components/dashboard/measurements";
 import { VerifyPermissions } from "@/components/rbac";
 import { SCENARIO_PERMISSIONS } from "@/constants/permissions";
+import { Button } from "@/components/ui/button";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 export default function MeasurementsPage() {
 	const params = useParams();
@@ -49,6 +58,12 @@ export default function MeasurementsPage() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [isLoadingDevices, setIsLoadingDevices] = useState(true);
 	const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
+
+	// Auto-refresh
+	const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
+	const [autoRefreshInterval, setAutoRefreshInterval] = useState(30); // segundos
+	const [countdown, setCountdown] = useState(0);
+	const lastFiltersRef = useRef<FilterMeasurementsDTO | null>(null);
 
 	// Encontra o tenantId do cenário
 	const tenantId = useMemo(() => {
@@ -93,6 +108,9 @@ export default function MeasurementsPage() {
 		async (filters: FilterMeasurementsDTO) => {
 			if (!tenantId) return;
 
+			// Salva os filtros para o auto-refresh
+			lastFiltersRef.current = filters;
+
 			try {
 				setIsLoading(true);
 				const response = await apiService.fetchWithAuth<MeasurementsResponse>(
@@ -113,6 +131,9 @@ export default function MeasurementsPage() {
 					setStatistics(response.data.statistics || {});
 					setLastFetchTime(new Date());
 				}
+
+				// Reinicia o countdown quando faz uma busca
+				setCountdown(autoRefreshInterval);
 			} catch (error) {
 				console.error("Erro ao buscar medições:", error);
 				toast.error("Erro ao buscar medições");
@@ -120,8 +141,44 @@ export default function MeasurementsPage() {
 				setIsLoading(false);
 			}
 		},
-		[tenantId, scenarioId],
+		[tenantId, scenarioId, autoRefreshInterval],
 	);
+
+	// Auto-refresh countdown
+	useEffect(() => {
+		if (!autoRefreshEnabled || !lastFiltersRef.current) {
+			setCountdown(0);
+			return;
+		}
+
+		setCountdown(autoRefreshInterval);
+
+		const intervalId = setInterval(() => {
+			setCountdown((prev) => {
+				if (prev <= 1) {
+					return autoRefreshInterval;
+				}
+				return prev - 1;
+			});
+		}, 1000);
+
+		return () => clearInterval(intervalId);
+	}, [autoRefreshEnabled, autoRefreshInterval]);
+
+	// Auto-refresh trigger - separado do countdown
+	useEffect(() => {
+		if (!autoRefreshEnabled || !lastFiltersRef.current) {
+			return;
+		}
+
+		const refreshIntervalId = setInterval(() => {
+			if (lastFiltersRef.current) {
+				fetchMeasurements(lastFiltersRef.current);
+			}
+		}, autoRefreshInterval * 1000);
+
+		return () => clearInterval(refreshIntervalId);
+	}, [autoRefreshEnabled, autoRefreshInterval, fetchMeasurements]);
 
 	// Carrega dispositivos na montagem
 	useEffect(() => {
@@ -164,14 +221,70 @@ export default function MeasurementsPage() {
 		>
 			<div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 				{/* Header */}
-				<div>
-					<h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-						<BarChart3 className="w-6 h-6 text-emerald-600" />
-						Medições
-					</h2>
-					<p className="text-gray-600 dark:text-gray-400 mt-1">
-						Visualize e analise os dados coletados pelos dispositivos
-					</p>
+				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+					<div>
+						<h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+							<BarChart3 className="w-6 h-6 text-emerald-600" />
+							Medições
+						</h2>
+						<p className="text-gray-600 dark:text-gray-400 mt-1">
+							Visualize e analise os dados coletados pelos dispositivos
+						</p>
+					</div>
+
+					{/* Controle de Auto-Refresh */}
+					<div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+						<div className="flex items-center gap-2">
+							<RefreshCw
+								className={`w-4 h-4 ${autoRefreshEnabled ? "text-emerald-500 animate-spin" : "text-gray-400"}`}
+								style={{
+									animationDuration: autoRefreshEnabled ? "2s" : "0s",
+								}}
+							/>
+							<span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+								Auto-refresh
+							</span>
+						</div>
+
+						<Select
+							value={autoRefreshInterval.toString()}
+							onValueChange={(v) => setAutoRefreshInterval(parseInt(v))}
+						>
+							<SelectTrigger className="w-[100px] h-8">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="15">15s</SelectItem>
+								<SelectItem value="30">30s</SelectItem>
+								<SelectItem value="60">1 min</SelectItem>
+								<SelectItem value="120">2 min</SelectItem>
+								<SelectItem value="300">5 min</SelectItem>
+							</SelectContent>
+						</Select>
+
+						<Button
+							size="sm"
+							variant={autoRefreshEnabled ? "default" : "outline"}
+							onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+							className={
+								autoRefreshEnabled ? "bg-emerald-600 hover:bg-emerald-700" : ""
+							}
+							disabled={!lastFiltersRef.current}
+							title={
+								!lastFiltersRef.current
+									? "Faça uma busca primeiro para habilitar o auto-refresh"
+									: ""
+							}
+						>
+							{autoRefreshEnabled ? "Desativar" : "Ativar"}
+						</Button>
+
+						{autoRefreshEnabled && countdown > 0 && (
+							<Badge variant="secondary" className="text-xs">
+								{countdown}s
+							</Badge>
+						)}
+					</div>
 				</div>
 
 				{/* Filtros */}
@@ -217,10 +330,6 @@ export default function MeasurementsPage() {
 									<LineChart className="w-4 h-4" />
 									Gráfico
 								</TabsTrigger>
-								<TabsTrigger value="table" className="flex items-center gap-2">
-									<TableIcon className="w-4 h-4" />
-									Tabela
-								</TabsTrigger>
 							</TabsList>
 							<TabsContent value="chart">
 								<MeasurementChart
@@ -228,9 +337,6 @@ export default function MeasurementsPage() {
 									isLoading={isLoading}
 									title=""
 								/>
-							</TabsContent>
-							<TabsContent value="table">
-								<MeasurementTable measurements={measurements} pageSize={15} />
 							</TabsContent>
 						</Tabs>
 					</CardContent>

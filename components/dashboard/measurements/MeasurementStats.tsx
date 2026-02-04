@@ -19,6 +19,7 @@ import {
 	Cpu,
 	ChevronRight,
 	LineChart,
+	Clock,
 } from "lucide-react";
 
 interface MeasurementStatsProps {
@@ -55,6 +56,22 @@ export function MeasurementStats({
 					unit: m.Sensor.Category.unit,
 					categoryId: m.Sensor.Category.id,
 				});
+			}
+		});
+		return map;
+	}, [measurements]);
+
+	// Mapeia a última medição por dispositivo+sensor (mais recente)
+	const lastMeasurementMap = useMemo(() => {
+		const map = new Map<string, Measurement>();
+		measurements.forEach((m) => {
+			const key = `${m.deviceScenarioId}_${m.sensorId}`;
+			const existing = map.get(key);
+			if (
+				!existing ||
+				new Date(m.dtMeasure).getTime() > new Date(existing.dtMeasure).getTime()
+			) {
+				map.set(key, m);
 			}
 		});
 		return map;
@@ -145,6 +162,9 @@ export function MeasurementStats({
 										const sensor = sensorsMap.get(sensorId);
 										const sensorName = sensor?.name || "Sensor";
 										const unit = sensor?.unit || "";
+										const lastMeasurement = lastMeasurementMap.get(
+											`${deviceId}_${sensorId}`,
+										);
 
 										return (
 											<div
@@ -163,7 +183,7 @@ export function MeasurementStats({
 													)}
 												</div>
 
-												<div className="grid grid-cols-3 gap-4 pl-6">
+												<div className="grid grid-cols-3 lg:grid-cols-5 gap-4 pl-6">
 													{/* Mínimo */}
 													<div className="flex items-center gap-2">
 														<div className="p-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30">
@@ -224,6 +244,40 @@ export function MeasurementStats({
 														</div>
 													</div>
 
+													{/* Último Valor */}
+													{lastMeasurement && (
+														<div className="flex items-center gap-2">
+															<div className="p-1.5 rounded-full bg-blue-100 dark:bg-blue-900/30">
+																<Clock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+															</div>
+															<div>
+																<p className="text-xs text-gray-500 dark:text-gray-400">
+																	Último valor
+																</p>
+																<p className="text-sm font-semibold text-gray-900 dark:text-white">
+																	{Number(lastMeasurement.value).toFixed(2)}
+																	{unit && (
+																		<span className="text-xs font-normal text-gray-500 ml-1">
+																			{unit}
+																		</span>
+																	)}
+																</p>
+																<p className="text-xs text-gray-400 dark:text-gray-500">
+																	{new Date(
+																		lastMeasurement.dtMeasure,
+																	).toLocaleString("pt-BR", {
+																		day: "2-digit",
+																		month: "2-digit",
+																		year: "2-digit",
+																		hour: "2-digit",
+																		minute: "2-digit",
+																	})}
+																</p>
+															</div>
+														</div>
+													)}
+
+													{/* Total */}
 													<div className="flex items-center gap-2">
 														<div className="p-1.5 rounded-full bg-green-100 dark:bg-green-900/30">
 															<LineChart className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
