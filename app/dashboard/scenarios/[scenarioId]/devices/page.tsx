@@ -160,13 +160,19 @@ export default function DevicesPage() {
 	const filteredDevices = useMemo(() => {
 		if (!searchTerm) return devices;
 		const term = searchTerm.toLowerCase();
+		const roleLabels = {
+			gateway: "gateway",
+			node: "nó node",
+			self: "independente próprio self",
+		};
 		return devices.filter(
 			(device) =>
 				device.name?.toLowerCase().includes(term) ||
 				device.macAddress.toLowerCase().includes(term) ||
 				device.mqttClientId.toLowerCase().includes(term) ||
 				device.Device?.name.toLowerCase().includes(term) ||
-				device.Spot?.name.toLowerCase().includes(term),
+				device.Spot?.name.toLowerCase().includes(term) ||
+				roleLabels[device.role].includes(term),
 		);
 	}, [devices, searchTerm]);
 
@@ -295,7 +301,7 @@ export default function DevicesPage() {
 									<TableRow>
 										<TableHead>Nome</TableHead>
 										<TableHead>Modelo</TableHead>
-										<TableHead>MAC Address</TableHead>
+										<TableHead>Tipo</TableHead>
 										<TableHead>Local</TableHead>
 										<TableHead>Status</TableHead>
 										<TableHead>Claim Code</TableHead>
@@ -317,10 +323,21 @@ export default function DevicesPage() {
 												</div>
 											</TableCell>
 											<TableCell>
-												<div className="flex items-center gap-2 font-mono text-sm">
-													<Hash className="w-3 h-3 text-gray-400" />
-													{device.macAddress}
-												</div>
+												{device.role === "gateway" && (
+													<Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+														Gateway
+													</Badge>
+												)}
+												{device.role === "node" && (
+													<Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+														Nó
+													</Badge>
+												)}
+												{device.role === "self" && (
+													<Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+														Independente
+													</Badge>
+												)}
 											</TableCell>
 											<TableCell>
 												{device.Spot ? (

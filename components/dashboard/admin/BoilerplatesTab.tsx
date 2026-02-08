@@ -66,6 +66,8 @@ interface Device {
 	id: string;
 	name: string;
 	enabled: boolean;
+	canActAsGateway?: boolean;
+	protocols?: string[];
 	sensors: Sensor[];
 }
 
@@ -91,12 +93,14 @@ export function BoilerplatesTab() {
 	// Form state
 	const [formData, setFormData] = useState({
 		name: "",
+		canActAsGateway: false,
+		protocols: "" as string,
 		sensors: [] as SensorFormData[],
 	});
 
 	// Estado para adicionar novo sensor
 	const [newSensorMode, setNewSensorMode] = useState<"existing" | "new">(
-		"existing"
+		"existing",
 	);
 	const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
 	const [newCategoryName, setNewCategoryName] = useState("");
@@ -133,6 +137,8 @@ export function BoilerplatesTab() {
 		setEditingDevice(null);
 		setFormData({
 			name: "",
+			canActAsGateway: false,
+			protocols: "",
 			sensors: [],
 		});
 		resetNewSensorForm();
@@ -143,6 +149,8 @@ export function BoilerplatesTab() {
 		setEditingDevice(device);
 		setFormData({
 			name: device.name,
+			canActAsGateway: device.canActAsGateway || false,
+			protocols: device.protocols?.join(", ") || "",
 			sensors: device.sensors.map((s) => ({
 				id: s.id,
 				categoryId: s.categoryId,
@@ -158,6 +166,8 @@ export function BoilerplatesTab() {
 		setEditingDevice(null);
 		setFormData({
 			name: `${device.name} (Cópia)`,
+			canActAsGateway: device.canActAsGateway || false,
+			protocols: device.protocols?.join(", ") || "",
 			sensors: device.sensors.map((s) => ({
 				// Usa categoryId para referenciar categoria existente
 				categoryId: s.categoryId,
@@ -188,7 +198,7 @@ export function BoilerplatesTab() {
 
 			// Verifica se já existe um sensor com essa categoria
 			const exists = formData.sensors.some(
-				(s) => s.categoryId === selectedCategoryId
+				(s) => s.categoryId === selectedCategoryId,
 			);
 			if (exists) {
 				toast.error("Esta categoria já foi adicionada");
@@ -238,8 +248,9 @@ export function BoilerplatesTab() {
 			return;
 		}
 
-		if (formData.sensors.length === 0) {
-			toast.error("Adicione pelo menos um sensor");
+		// Validação: sensores obrigatórios apenas para dispositivos que não são gateway
+		if (!formData.canActAsGateway && formData.sensors.length === 0) {
+			toast.error("Adicione pelo menos um sensor ou marque como gateway");
 			return;
 		}
 
@@ -248,9 +259,16 @@ export function BoilerplatesTab() {
 		try {
 			if (editingDevice) {
 				// Atualizar dispositivo existente
+				const protocols = formData.protocols
+					.split(",")
+					.map((p) => p.trim())
+					.filter((p) => p.length > 0);
+
 				const updatePayload = {
 					id: editingDevice.id,
 					name: formData.name,
+					canActAsGateway: formData.canActAsGateway,
+					protocols,
 					sensors: formData.sensors.map((s) => {
 						if (s.id) {
 							// Sensor existente - apenas manter
@@ -275,8 +293,15 @@ export function BoilerplatesTab() {
 				toast.success("Dispositivo atualizado com sucesso!");
 			} else {
 				// Criar novo dispositivo
+				const protocols = formData.protocols
+					.split(",")
+					.map((p) => p.trim())
+					.filter((p) => p.length > 0);
+
 				const createPayload = {
 					name: formData.name,
+					canActAsGateway: formData.canActAsGateway,
+					protocols,
 					sensors: formData.sensors.map((s) => {
 						if (s.categoryId) {
 							return { categoryId: s.categoryId };
@@ -374,13 +399,21 @@ export function BoilerplatesTab() {
 											<CardTitle className="text-base line-clamp-1 text-gray-900 dark:text-white">
 												{device.name}
 											</CardTitle>
-											<div className="flex items-center gap-2 mt-1">
+											<div className="flex items-center gap-2 mt-1 flex-wrap">
 												<Badge
 													variant={device.enabled ? "default" : "secondary"}
 													className="text-xs"
 												>
 													{device.enabled ? "Ativo" : "Inativo"}
 												</Badge>
+												{device.canActAsGateway && (
+													<Badge
+														variant="outline"
+														className="text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+													>
+														Gateway
+													</Badge>
+												)}
 											</div>
 										</div>
 									</div>
@@ -439,11 +472,32 @@ export function BoilerplatesTab() {
 								</div>
 							</CardHeader>
 							<CardContent className="pt-0">
-								<div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
+								<div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300 mb-2">
 									<Gauge className="w-3 h-3" />
 									{device.sensors.length} sensor
 									{device.sensors.length !== 1 ? "es" : ""}
 								</div>
+								{device.protocols && device.protocols.length > 0 && (
+									<div className="flex flex-wrap gap-1 mb-2">
+										{device.protocols.slice(0, 3).map((protocol, idx) => (
+											<Badge
+												key={idx}
+												variant="outline"
+												className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+											>
+												{protocol}
+											</Badge>
+										))}
+										{device.protocols.length > 3 && (
+											<Badge
+												variant="outline"
+												className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+											>
+												+{device.protocols.length - 3}
+											</Badge>
+										)}
+									</div>
+								)}
 								{device.sensors.length > 0 && (
 									<div className="flex flex-wrap gap-1 mt-2">
 										{device.sensors.slice(0, 3).map((sensor) => (
@@ -583,6 +637,53 @@ export function BoilerplatesTab() {
 							/>
 						</div>
 
+						{/* Gateway Capability */}
+						<div className="space-y-2">
+							<div className="flex items-center space-x-2">
+								<Checkbox
+									id="canActAsGateway"
+									checked={formData.canActAsGateway}
+									onCheckedChange={(checked) =>
+										setFormData((prev) => ({
+											...prev,
+											canActAsGateway: checked as boolean,
+										}))
+									}
+								/>
+								<Label
+									htmlFor="canActAsGateway"
+									className="text-sm font-medium cursor-pointer"
+								>
+									Este dispositivo pode atuar como Gateway
+								</Label>
+							</div>
+							<p className="text-xs text-gray-500 dark:text-gray-400 ml-6">
+								Gateways podem coordenar outros dispositivos e não necessitam de
+								sensores
+							</p>
+						</div>
+
+						{/* Protocols */}
+						<div>
+							<Label htmlFor="protocols">
+								Protocolos Suportados (Opcional)
+							</Label>
+							<Input
+								id="protocols"
+								value={formData.protocols}
+								onChange={(e) =>
+									setFormData((prev) => ({
+										...prev,
+										protocols: e.target.value,
+									}))
+								}
+								placeholder="Ex: MQTT, Zigbee, LoRa, WiFi"
+							/>
+							<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+								Separe múltiplos protocolos por vírgula
+							</p>
+						</div>
+
 						{/* Sensores */}
 						<div className="space-y-4">
 							<div className="flex items-center justify-between">
@@ -606,8 +707,8 @@ export function BoilerplatesTab() {
 										const variant = isExisting
 											? "existing"
 											: isExistingCategory
-											? "existing-category"
-											: "new-category";
+												? "existing-category"
+												: "new-category";
 
 										return (
 											<SensorCard
