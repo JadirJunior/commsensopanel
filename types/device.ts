@@ -11,11 +11,13 @@ export interface Sensor {
 	id: string;
 	categoryId: string;
 	deviceId: string;
+	channel?: number;
 	Category?: SensorCategory;
 }
 
 export interface SensorCategory {
 	id: string;
+	key?: string;
 	name: string;
 	unit: string;
 }

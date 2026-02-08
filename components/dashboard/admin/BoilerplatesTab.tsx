@@ -51,6 +51,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 // Tipos da API
 interface SensorCategory {
 	id: string;
+	key?: string;
 	name: string;
 	unit: string;
 }
@@ -59,6 +60,7 @@ interface Sensor {
 	id: string;
 	deviceId: string;
 	categoryId: string;
+	channel?: number;
 	Category: SensorCategory;
 }
 
@@ -77,6 +79,8 @@ interface SensorFormData {
 	categoryId?: string;
 	categoryName: string;
 	categoryUnit: string;
+	categoryKey?: string;
+	channel: number;
 }
 
 export function BoilerplatesTab() {
@@ -105,6 +109,8 @@ export function BoilerplatesTab() {
 	const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
 	const [newCategoryName, setNewCategoryName] = useState("");
 	const [newCategoryUnit, setNewCategoryUnit] = useState("");
+	const [newCategoryKey, setNewCategoryKey] = useState("");
+	const [newSensorChannel, setNewSensorChannel] = useState<number>(1);
 
 	// Carregar dispositivos e categorias ao montar
 	useEffect(() => {
@@ -156,6 +162,8 @@ export function BoilerplatesTab() {
 				categoryId: s.categoryId,
 				categoryName: s.Category.name,
 				categoryUnit: s.Category.unit,
+				categoryKey: s.Category.key || "",
+				channel: s.channel ?? 1,
 			})),
 		});
 		resetNewSensorForm();
@@ -173,6 +181,8 @@ export function BoilerplatesTab() {
 				categoryId: s.categoryId,
 				categoryName: s.Category.name,
 				categoryUnit: s.Category.unit,
+				categoryKey: s.Category.key || "",
+				channel: s.channel ?? 1,
 			})),
 		});
 		resetNewSensorForm();
@@ -184,6 +194,8 @@ export function BoilerplatesTab() {
 		setSelectedCategoryId("");
 		setNewCategoryName("");
 		setNewCategoryUnit("");
+		setNewCategoryKey("");
+		setNewSensorChannel(1);
 	};
 
 	const handleAddSensor = () => {
@@ -196,12 +208,13 @@ export function BoilerplatesTab() {
 			const category = categories.find((c) => c.id === selectedCategoryId);
 			if (!category) return;
 
-			// Verifica se já existe um sensor com essa categoria
+			// Verifica se já existe um sensor com essa categoria E canal
 			const exists = formData.sensors.some(
-				(s) => s.categoryId === selectedCategoryId,
+				(s) =>
+					s.categoryId === selectedCategoryId && s.channel === newSensorChannel,
 			);
 			if (exists) {
-				toast.error("Esta categoria já foi adicionada");
+				toast.error("Já existe um sensor com esta categoria e canal");
 				return;
 			}
 
@@ -209,6 +222,8 @@ export function BoilerplatesTab() {
 				categoryId: category.id,
 				categoryName: category.name,
 				categoryUnit: category.unit,
+				categoryKey: category.key || "",
+				channel: newSensorChannel,
 			};
 
 			setFormData((prev) => ({
@@ -224,6 +239,8 @@ export function BoilerplatesTab() {
 			const sensor: SensorFormData = {
 				categoryName: newCategoryName.trim(),
 				categoryUnit: newCategoryUnit.trim(),
+				categoryKey: newCategoryKey.trim(),
+				channel: newSensorChannel,
 			};
 
 			setFormData((prev) => ({
@@ -276,11 +293,13 @@ export function BoilerplatesTab() {
 						}
 						// Novo sensor - pode ter categoryId ou categoryName/categoryUnit
 						if (s.categoryId) {
-							return { categoryId: s.categoryId };
+							return { categoryId: s.categoryId, channel: s.channel };
 						}
 						return {
 							categoryName: s.categoryName,
 							categoryUnit: s.categoryUnit,
+							...(s.categoryKey ? { categoryKey: s.categoryKey } : {}),
+							channel: s.channel,
 						};
 					}),
 				};
@@ -304,11 +323,13 @@ export function BoilerplatesTab() {
 					protocols,
 					sensors: formData.sensors.map((s) => {
 						if (s.categoryId) {
-							return { categoryId: s.categoryId };
+							return { categoryId: s.categoryId, channel: s.channel };
 						}
 						return {
 							categoryName: s.categoryName,
 							categoryUnit: s.categoryUnit,
+							...(s.categoryKey ? { categoryKey: s.categoryKey } : {}),
+							channel: s.channel,
 						};
 					}),
 				};
@@ -508,6 +529,9 @@ export function BoilerplatesTab() {
 											>
 												{sensor.Category.name}
 												{sensor.Category.unit && ` (${sensor.Category.unit})`}
+												{sensor.channel != null &&
+													sensor.channel > 1 &&
+													` ch${sensor.channel}`}
 											</Badge>
 										))}
 										{device.sensors.length > 3 && (
@@ -580,6 +604,8 @@ export function BoilerplatesTab() {
 													name={sensor.Category.name}
 													unit={sensor.Category.unit}
 													id={sensor.id}
+													channel={sensor.channel}
+													sensorKey={sensor.Category.key}
 													variant="view"
 												/>
 											))}
@@ -715,6 +741,8 @@ export function BoilerplatesTab() {
 												key={sensor.id || index}
 												name={sensor.categoryName}
 												unit={sensor.categoryUnit}
+												channel={sensor.channel}
+												sensorKey={sensor.categoryKey}
 												variant={variant}
 												showStatus
 												onRemove={() => handleRemoveSensor(index)}
@@ -755,7 +783,13 @@ export function BoilerplatesTab() {
 										</Label>
 										<Select
 											value={selectedCategoryId}
-											onValueChange={setSelectedCategoryId}
+											onValueChange={(value) => {
+												setSelectedCategoryId(value);
+												const cat = categories.find((c) => c.id === value);
+												if (cat?.key) {
+													setNewCategoryKey(cat.key);
+												}
+											}}
 										>
 											<SelectTrigger className="h-9">
 												<SelectValue placeholder="Selecione uma categoria..." />
@@ -770,6 +804,7 @@ export function BoilerplatesTab() {
 														<SelectItem key={cat.id} value={cat.id}>
 															{cat.name}
 															{cat.unit && ` (${cat.unit})`}
+															{cat.key && ` [${cat.key}]`}
 														</SelectItem>
 													))
 												)}
@@ -777,33 +812,73 @@ export function BoilerplatesTab() {
 										</Select>
 									</div>
 								) : (
-									<div className="grid grid-cols-2 gap-3">
-										<div>
-											<Label htmlFor="newCategoryName" className="text-xs">
-												Nome da Categoria *
-											</Label>
-											<Input
-												id="newCategoryName"
-												value={newCategoryName}
-												onChange={(e) => setNewCategoryName(e.target.value)}
-												placeholder="Ex: pH, Temperatura"
-												className="h-9"
-											/>
+									<div className="space-y-3">
+										<div className="grid grid-cols-2 gap-3">
+											<div>
+												<Label htmlFor="newCategoryName" className="text-xs">
+													Nome da Categoria *
+												</Label>
+												<Input
+													id="newCategoryName"
+													value={newCategoryName}
+													onChange={(e) => setNewCategoryName(e.target.value)}
+													placeholder="Ex: pH, Temperatura"
+													className="h-9"
+												/>
+											</div>
+											<div>
+												<Label htmlFor="newCategoryUnit" className="text-xs">
+													Unidade (opcional)
+												</Label>
+												<Input
+													id="newCategoryUnit"
+													value={newCategoryUnit}
+													onChange={(e) => setNewCategoryUnit(e.target.value)}
+													placeholder="Ex: °C, %, V"
+													className="h-9"
+												/>
+											</div>
 										</div>
 										<div>
-											<Label htmlFor="newCategoryUnit" className="text-xs">
-												Unidade (opcional)
+											<Label htmlFor="newCategoryKey" className="text-xs">
+												Chave Técnica (opcional)
 											</Label>
 											<Input
-												id="newCategoryUnit"
-												value={newCategoryUnit}
-												onChange={(e) => setNewCategoryUnit(e.target.value)}
-												placeholder="Ex: °C, %, V"
-												className="h-9"
+												id="newCategoryKey"
+												value={newCategoryKey}
+												onChange={(e) => setNewCategoryKey(e.target.value)}
+												placeholder="Ex: temperature, humidity, co2"
+												className="h-9 font-mono"
 											/>
+											<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+												Identificador único do tipo de sensor (ex:
+												&quot;temperature&quot;, &quot;humidity&quot;)
+											</p>
 										</div>
 									</div>
 								)}
+
+								{/* Canal */}
+								<div>
+									<Label htmlFor="newSensorChannel" className="text-xs">
+										Canal
+									</Label>
+									<Input
+										id="newSensorChannel"
+										type="number"
+										min={1}
+										value={newSensorChannel}
+										onChange={(e) =>
+											setNewSensorChannel(parseInt(e.target.value) || 1)
+										}
+										placeholder="1"
+										className="h-9 w-24"
+									/>
+									<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+										Permite múltiplos sensores da mesma categoria em canais
+										diferentes
+									</p>
+								</div>
 
 								<Button
 									type="button"

@@ -14,6 +14,8 @@ interface SensorCardProps {
 	name: string;
 	unit: string;
 	id?: string;
+	channel?: number;
+	sensorKey?: string;
 	variant?: SensorCardVariant;
 	showStatus?: boolean;
 	onRemove?: () => void;
@@ -54,6 +56,8 @@ export function SensorCard({
 	name,
 	unit,
 	id,
+	channel,
+	sensorKey,
 	variant = "view",
 	showStatus = false,
 	onRemove,
@@ -77,18 +81,46 @@ export function SensorCard({
 						{name}
 					</p>
 					{showStatus ? (
-						<div className="flex items-center gap-2">
+						<div className="flex items-center gap-2 flex-wrap">
 							<Badge className={`text-xs font-medium ${styles.badge}`}>
 								{unit || "Sem unidade"}
 							</Badge>
+							{channel != null && (
+								<Badge variant="outline" className="text-xs font-medium">
+									Canal {channel}
+								</Badge>
+							)}
+							{sensorKey && (
+								<Badge
+									variant="outline"
+									className="text-xs font-mono text-gray-500 dark:text-gray-400"
+								>
+									{sensorKey}
+								</Badge>
+							)}
 							<span className={`text-xs font-medium ${styles.statusColor}`}>
 								• {styles.statusText}
 							</span>
 						</div>
 					) : (
-						<p className="text-xs text-gray-500 dark:text-gray-400">
-							{id ? `ID: ${id.slice(0, 8)}...` : unit || "Sem unidade"}
-						</p>
+						<div className="flex items-center gap-2 flex-wrap">
+							<p className="text-xs text-gray-500 dark:text-gray-400">
+								{id ? `ID: ${id.slice(0, 8)}...` : unit || "Sem unidade"}
+							</p>
+							{channel != null && (
+								<Badge variant="outline" className="text-xs">
+									Canal {channel}
+								</Badge>
+							)}
+							{sensorKey && (
+								<Badge
+									variant="outline"
+									className="text-xs font-mono text-gray-500 dark:text-gray-400"
+								>
+									{sensorKey}
+								</Badge>
+							)}
+						</div>
 					)}
 				</div>
 			</div>
