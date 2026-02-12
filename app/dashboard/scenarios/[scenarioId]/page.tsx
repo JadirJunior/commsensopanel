@@ -9,39 +9,101 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { BarChart3, Cpu, MapPin, Activity, ImageIcon } from "lucide-react";
-import { useMemo } from "react";
+import {
+	BarChart3,
+	Cpu,
+	MapPin,
+	Activity,
+	ImageIcon,
+	Loader2,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { UserTenant, UserScenario } from "@/types/auth";
+import { apiService } from "@/lib/api";
+
+interface ScenarioStats {
+	devices: number;
+	spots: number;
+	activeRules: number;
+	imagesGenerated: number;
+}
 
 export default function ScenarioOverviewPage() {
 	const params = useParams();
 	const { user } = useAuth();
 	const scenarioId = params.scenarioId as string;
 
+	const [stats, setStats] = useState<ScenarioStats>({
+		devices: 0,
+		spots: 0,
+		activeRules: 0,
+		imagesGenerated: 0,
+	});
+	const [isLoading, setIsLoading] = useState(true);
+
 	const scenarioData = useMemo((): {
 		userTenant: UserTenant | null;
 		userScenario: UserScenario | null;
+		tenantId: string;
 	} => {
-		if (!user?.userTenants) return { userTenant: null, userScenario: null };
+		if (!user?.userTenants)
+			return { userTenant: null, userScenario: null, tenantId: "" };
 
 		for (const ut of user.userTenants) {
 			const us = ut.UserScenarios?.find(
-				(scenario) => scenario.Scenario?.id === scenarioId
+				(scenario) => scenario.Scenario?.id === scenarioId,
 			);
 			if (us) {
-				return { userTenant: ut, userScenario: us };
+				return { userTenant: ut, userScenario: us, tenantId: ut.tenantId };
 			}
 		}
-		return { userTenant: null, userScenario: null };
+		return { userTenant: null, userScenario: null, tenantId: "" };
 	}, [user, scenarioId]);
 
-	const { userTenant, userScenario } = scenarioData;
+	const { userTenant, userScenario, tenantId } = scenarioData;
 
-	// Stats cards (dados mockados por enquanto - depois integrar com API)
-	const stats = [
+	const fetchStats = useCallback(async () => {
+		if (!tenantId || !scenarioId) {
+			setIsLoading(false);
+			return;
+		}
+
+		setIsLoading(true);
+		try {
+			const headers = {
+				"x-tenant-id": tenantId,
+				"x-scenario-id": scenarioId,
+			};
+
+			const response = await apiService.fetchWithAuth<{
+				devices: number;
+				spots: number;
+			}>("/scenario/stats", { headers });
+
+			setStats({
+				devices: response.data?.devices ?? 0,
+				spots: response.data?.spots ?? 0,
+				activeRules: 0, // TODO: endpoint de regras
+				imagesGenerated: 0, // TODO: endpoint de imagens
+			});
+		} catch (error) {
+			console.error("Failed to fetch stats:", error);
+		} finally {
+			setIsLoading(false);
+		}
+	}, [tenantId, scenarioId]);
+
+	useEffect(() => {
+		if (tenantId) {
+			fetchStats();
+		}
+	}, [tenantId, fetchStats]);
+
+	// Stats cards
+	const statsCards = [
 		{
 			title: "Dispositivos",
-			value: "0",
+			value: stats.devices,
 			description: "Total cadastrados",
 			icon: Cpu,
 			color: "text-blue-600 dark:text-blue-400",
@@ -49,7 +111,7 @@ export default function ScenarioOverviewPage() {
 		},
 		{
 			title: "Spots",
-			value: "0",
+			value: stats.spots,
 			description: "Pontos de medição",
 			icon: MapPin,
 			color: "text-emerald-600 dark:text-emerald-400",
@@ -57,7 +119,7 @@ export default function ScenarioOverviewPage() {
 		},
 		{
 			title: "Regras Ativas",
-			value: "0",
+			value: stats.activeRules,
 			description: "Regras de sensor",
 			icon: Activity,
 			color: "text-amber-600 dark:text-amber-400",
@@ -65,7 +127,7 @@ export default function ScenarioOverviewPage() {
 		},
 		{
 			title: "Imagens Geradas",
-			value: "0",
+			value: stats.imagesGenerated,
 			description: "Este mês",
 			icon: ImageIcon,
 			color: "text-purple-600 dark:text-purple-400",
@@ -91,7 +153,7 @@ export default function ScenarioOverviewPage() {
 
 			{/* Stats Cards */}
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-				{stats.map((stat) => (
+				{statsCards.map((stat) => (
 					<Card
 						key={stat.title}
 						className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800"
@@ -107,9 +169,13 @@ export default function ScenarioOverviewPage() {
 							</div>
 						</CardHeader>
 						<CardContent>
-							<div className="text-2xl font-bold text-gray-900 dark:text-white">
-								{stat.value}
-							</div>
+							{isLoading ? (
+								<Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+							) : (
+								<div className="text-2xl font-bold text-gray-900 dark:text-white">
+									{stat.value}
+								</div>
+							)}
 							<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
 								{stat.description}
 							</p>
