@@ -56,7 +56,7 @@ export function RolesTab({ tenantId }: RolesTabProps) {
 	const [isLoading, setIsLoading] = useState(true);
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [editingRole, setEditingRole] = useState<RoleModel | undefined>(
-		undefined
+		undefined,
 	);
 	const [isSaving, setIsSaving] = useState(false);
 	const [roleToDelete, setRoleToDelete] = useState<RoleModel | null>(null);
@@ -70,7 +70,7 @@ export function RolesTab({ tenantId }: RolesTabProps) {
 					headers: {
 						"x-tenant-id": tenantId,
 					},
-				}
+				},
 			);
 			if (response.data) {
 				setRoles(response.data);
