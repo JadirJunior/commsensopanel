@@ -29,7 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DeviceScenario } from "@/types/device";
+import { DeviceScenario, DeviceState } from "@/types/device";
 import { apiService } from "@/lib/api";
 import { toast } from "sonner";
 import { DeviceScenarioDialog } from "@/components/dashboard/devices/DeviceScenarioDialog";
@@ -108,7 +108,7 @@ export default function DevicesPage() {
 		} finally {
 			setIsLoading(false);
 		}
-	}, [tenantId]);
+	}, [tenantId, scenarioId]);
 
 	useEffect(() => {
 		if (tenantId) {
@@ -196,6 +196,49 @@ export default function DevicesPage() {
 		};
 		const config = statusConfig[status];
 		return <Badge className={config.className}>{config.label}</Badge>;
+	};
+
+	const getDeviceStateBadge = (status: DeviceState["status"]) => {
+		const stateConfig = {
+			ONLINE: {
+				label: "Online",
+				icon: Power,
+				className:
+					"bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+			},
+			OFFLINE: {
+				label: "Offline",
+				icon: PowerOff,
+				className:
+					"bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
+			},
+			MEASURING: {
+				label: "Medindo",
+				icon: Cpu,
+				className:
+					"bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+			},
+			ERROR: {
+				label: "Erro",
+				icon: PowerOff,
+				className:
+					"bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+			},
+			MAINTENANCE: {
+				label: "Manutenção",
+				icon: Cpu,
+				className:
+					"bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+			},
+		};
+		const config = stateConfig[status];
+		const Icon = config.icon;
+		return (
+			<Badge className={config.className}>
+				<Icon className="w-3 h-3 mr-1" />
+				{config.label}
+			</Badge>
+		);
 	};
 
 	return (
@@ -304,6 +347,7 @@ export default function DevicesPage() {
 										<TableHead>Tipo</TableHead>
 										<TableHead>Local</TableHead>
 										<TableHead>Status</TableHead>
+										<TableHead>Estado IoT</TableHead>
 										<TableHead>Claim Code</TableHead>
 										<TableHead className="w-[50px]"></TableHead>
 									</TableRow>
@@ -350,6 +394,13 @@ export default function DevicesPage() {
 												)}
 											</TableCell>
 											<TableCell>{getStatusBadge(device.status)}</TableCell>
+											<TableCell>
+												{device.deviceStates?.[0] ? (
+													getDeviceStateBadge(device.deviceStates[0].status)
+												) : (
+													<span className="text-xs text-gray-400">-</span>
+												)}
+											</TableCell>
 											<TableCell>
 												<code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
 													{device.claimCode}
@@ -420,6 +471,7 @@ export default function DevicesPage() {
 					open={detailsDialogOpen}
 					onOpenChange={setDetailsDialogOpen}
 					device={selectedDevice}
+					deviceState={selectedDevice?.deviceStates?.[0]}
 					tenantId={tenantId}
 					scenarioId={scenarioId}
 					onSaved={fetchDevices}

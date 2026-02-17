@@ -34,10 +34,15 @@ import {
 	Building2,
 	Tag,
 	Network,
+	Power,
+	PowerOff,
+	Activity,
+	Clock,
+	Database,
 } from "lucide-react";
 import { apiService } from "@/lib/api";
 import { toast } from "sonner";
-import { DeviceScenario } from "@/types/device";
+import { DeviceScenario, DeviceState } from "@/types/device";
 import { Spot } from "@/types/spot";
 import {
 	canChangeRole,
@@ -50,6 +55,7 @@ interface DeviceDetailsDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	device: DeviceScenario | null;
+	deviceState?: DeviceState;
 	tenantId: string;
 	scenarioId: string;
 	onSaved: () => void;
@@ -60,6 +66,7 @@ export function DeviceDetailsDialog({
 	open,
 	onOpenChange,
 	device,
+	deviceState,
 	tenantId,
 	scenarioId,
 	onSaved,
@@ -247,6 +254,49 @@ export function DeviceDetailsDialog({
 		return <Badge className={config.className}>{config.label}</Badge>;
 	};
 
+	const getDeviceStateBadge = (status: DeviceState["status"]) => {
+		const stateConfig = {
+			ONLINE: {
+				label: "Online",
+				icon: Power,
+				className:
+					"bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+			},
+			OFFLINE: {
+				label: "Offline",
+				icon: PowerOff,
+				className:
+					"bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
+			},
+			MEASURING: {
+				label: "Medindo",
+				icon: Activity,
+				className:
+					"bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+			},
+			ERROR: {
+				label: "Erro",
+				icon: PowerOff,
+				className:
+					"bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+			},
+			MAINTENANCE: {
+				label: "Manutenção",
+				icon: Activity,
+				className:
+					"bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+			},
+		};
+		const config = stateConfig[status];
+		const Icon = config.icon;
+		return (
+			<Badge className={config.className}>
+				<Icon className="w-3 h-3 mr-1" />
+				{config.label}
+			</Badge>
+		);
+	};
+
 	const formatDate = (dateString: string | null) => {
 		if (!dateString) return "-";
 		return new Date(dateString).toLocaleString("pt-BR", {
@@ -421,6 +471,77 @@ export function DeviceDetailsDialog({
 											</span>
 										)}
 									</div>
+								</div>
+
+								<Separator className="bg-gray-200 dark:bg-gray-800" />
+
+								{/* Estado do Dispositivo */}
+								<div className="space-y-3">
+									<h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
+										<Activity className="w-4 h-4 text-blue-600" />
+										Estado do Dispositivo
+									</h4>
+									{deviceState ? (
+										<div className="pl-6 space-y-3">
+											<div className="flex items-center justify-between">
+												<div className="space-y-1">
+													<Label className="text-xs text-gray-500 dark:text-gray-400">
+														Status Atual
+													</Label>
+													<div>{getDeviceStateBadge(deviceState.status)}</div>
+												</div>
+												<div className="space-y-1">
+													<Label className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+														<Clock className="w-3 h-3" />
+														Última Atualização
+													</Label>
+													<div className="text-xs text-gray-600 dark:text-gray-400">
+														{new Date(deviceState.dtState).toLocaleString(
+															"pt-BR",
+															{
+																dateStyle: "short",
+																timeStyle: "medium",
+															},
+														)}
+													</div>
+												</div>
+											</div>
+
+											{/* Metadados */}
+											{deviceState.metadata &&
+												Object.keys(deviceState.metadata).length > 0 && (
+													<div className="space-y-2">
+														<Label className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+															<Database className="w-3 h-3" />
+															Metadados
+														</Label>
+														<div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 space-y-2">
+															{Object.entries(deviceState.metadata).map(
+																([key, value]) => (
+																	<div
+																		key={key}
+																		className="flex items-start justify-between text-xs"
+																	>
+																		<span className="font-medium text-gray-700 dark:text-gray-300 capitalize">
+																			{key.replace(/_/g, " ")}:
+																		</span>
+																		<span className="text-gray-600 dark:text-gray-400 font-mono ml-2">
+																			{typeof value === "object"
+																				? JSON.stringify(value)
+																				: String(value)}
+																		</span>
+																	</div>
+																),
+															)}
+														</div>
+													</div>
+												)}
+										</div>
+									) : (
+										<div className="pl-6 text-sm text-gray-400 italic">
+											Nenhum estado registrado ainda
+										</div>
+									)}
 								</div>
 
 								<Separator className="bg-gray-200 dark:bg-gray-800" />

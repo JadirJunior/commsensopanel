@@ -51,6 +51,7 @@ export interface DeviceScenario {
 			name: string;
 		};
 	};
+	deviceStates?: DeviceState[];
 }
 
 export interface CreateDeviceScenarioDTO {
@@ -59,4 +60,35 @@ export interface CreateDeviceScenarioDTO {
 	spotId?: string;
 	macAddress: string;
 	role?: "gateway" | "node" | "self";
+}
+
+export type DeviceStatus =
+	| "ONLINE"
+	| "OFFLINE"
+	| "MEASURING"
+	| "ERROR"
+	| "MAINTENANCE";
+
+export interface DeviceState {
+	id: string;
+	deviceScenarioId: string;
+	status: DeviceStatus;
+	metadata: Record<string, any> | null;
+	dtState: string;
+	createdAt: string;
+}
+
+export interface DeviceStateWithDetails {
+	deviceScenario: {
+		id: string;
+		name?: string;
+		mqttClientId: string;
+		role: "gateway" | "node" | "self";
+	};
+	gateway: {
+		id: string;
+		name?: string;
+		mqttClientId: string;
+	} | null;
+	currentState: DeviceState;
 }
