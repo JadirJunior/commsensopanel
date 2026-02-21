@@ -32,7 +32,7 @@ export default function DashboardPage() {
 	const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
 
 	const selectedTenant = selectedTenantId
-		? user?.userTenants?.find((ut) => ut.id === selectedTenantId) ?? null
+		? (user?.userTenants?.find((ut) => ut.id === selectedTenantId) ?? null)
 		: null;
 
 	const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -55,7 +55,7 @@ export default function DashboardPage() {
 	}
 
 	// Se o usuário não tem tenants, mostra mensagem
-	if (!user.userTenants || user.userTenants.length === 0) {
+	if ((!user.userTenants || user.userTenants.length === 0) && !isSystemAdmin) {
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
 				<div className="text-center max-w-md px-4">
@@ -110,7 +110,7 @@ export default function DashboardPage() {
 									"transition-all",
 									showAdminPanel
 										? "bg-amber-600 hover:bg-amber-700 text-white border-amber-600"
-										: "border-amber-500/50 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
+										: "border-amber-500/50 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400",
 								)}
 							>
 								<ShieldCheck className="w-4 h-4 mr-2" />
@@ -163,47 +163,48 @@ export default function DashboardPage() {
 						</div>
 
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-							{user.userTenants.map((userTenant) => (
-								<Card
-									key={userTenant.id}
-									className="hover:shadow-xl transition-all duration-300 cursor-pointer border-t-4 border-t-emerald-500 hover:-translate-y-1 group"
-									onClick={() => setSelectedTenantId(userTenant.id)}
-								>
-									<CardHeader>
-										<div className="flex justify-between items-start mb-4">
-											<div className="w-14 h-14 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/40 transition-colors">
-												<Building2 className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
+							{user.userTenants &&
+								user.userTenants.map((userTenant) => (
+									<Card
+										key={userTenant.id}
+										className="hover:shadow-xl transition-all duration-300 cursor-pointer border-t-4 border-t-emerald-500 hover:-translate-y-1 group"
+										onClick={() => setSelectedTenantId(userTenant.id)}
+									>
+										<CardHeader>
+											<div className="flex justify-between items-start mb-4">
+												<div className="w-14 h-14 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/40 transition-colors">
+													<Building2 className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
+												</div>
+												<span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-xs font-medium text-gray-600 dark:text-gray-300">
+													{userTenant.TenantRole?.name || "Membro"}
+												</span>
 											</div>
-											<span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-xs font-medium text-gray-600 dark:text-gray-300">
-												{userTenant.TenantRole?.name || "Membro"}
-											</span>
-										</div>
-										<CardTitle className="text-xl text-gray-800 dark:text-gray-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
-											{userTenant.Tenant?.name || "Instituição sem nome"}
-										</CardTitle>
-										<CardDescription className="line-clamp-2">
-											{userTenant.Tenant?.description ||
-												"Sem descrição disponível"}
-										</CardDescription>
-									</CardHeader>
-									<CardContent>
-										<div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
-											<span className="text-sm text-gray-500 dark:text-gray-400">
-												{userTenant.UserScenarios?.length || 0} cenários
-												disponíveis
-											</span>
-											<Button
-												variant="ghost"
-												size="sm"
-												className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20 font-medium cursor-pointer transition-colors"
-											>
-												Acessar{" "}
-												<ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
-											</Button>
-										</div>
-									</CardContent>
-								</Card>
-							))}
+											<CardTitle className="text-xl text-gray-800 dark:text-gray-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
+												{userTenant.Tenant?.name || "Instituição sem nome"}
+											</CardTitle>
+											<CardDescription className="line-clamp-2">
+												{userTenant.Tenant?.description ||
+													"Sem descrição disponível"}
+											</CardDescription>
+										</CardHeader>
+										<CardContent>
+											<div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
+												<span className="text-sm text-gray-500 dark:text-gray-400">
+													{userTenant.UserScenarios?.length || 0} cenários
+													disponíveis
+												</span>
+												<Button
+													variant="ghost"
+													size="sm"
+													className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20 font-medium cursor-pointer transition-colors"
+												>
+													Acessar{" "}
+													<ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
+												</Button>
+											</div>
+										</CardContent>
+									</Card>
+								))}
 						</div>
 					</div>
 				)}
